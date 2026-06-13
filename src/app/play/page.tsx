@@ -6,7 +6,7 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { Heart } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   deleteFavorite,
@@ -183,7 +183,7 @@ function PlayPageClient() {
 
   // 保存优选时的测速结果，避免EpisodeSelector重复测速
   const [precomputedVideoInfo, setPrecomputedVideoInfo] = useState<
-    Map<string, { quality: string; loadSpeed: string; pingTime: number }>
+    Map<string, { quality: string; loadSpeed: string; pingTime: number; hasError?: boolean }>
   >(new Map());
 
   // 折叠状态（仅在 lg 及以上屏幕有效）
@@ -205,6 +205,21 @@ function PlayPageClient() {
 
   // Wake Lock 相关
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  const currentSourceDetail = useMemo(() => {
+    return availableSources.find(
+      (source) => source.source === currentSource && source.id === currentId
+    );
+  }, [availableSources, currentId, currentSource]);
+
+  const currentSourceInfo = useMemo(() => {
+    if (!currentSource || !currentId) return null;
+    return precomputedVideoInfo.get(`${currentSource}-${currentId}`) || null;
+  }, [currentId, currentSource, precomputedVideoInfo]);
+
+  const [sourceSuggestion, setSourceSuggestion] =
+    useState<SearchResult | null>(null);
+  const [isBackgroundPreferring, setIsBackgroundPreferring] = useState(false);
 
   // -----------------------------------------------------------------------------
   // 工具函数（Utils）
@@ -708,6 +723,64 @@ function PlayPageClient() {
       }
     };
 
+    let cancelled = false;
+
+    const applyDetailData = (detailData: SearchResult) => {
+      if (cancelled) return;
+
+      console.log(detailData.source, detailData.id);
+
+      setNeedPrefer(false);
+      setCurrentSource(detailData.source);
+      setCurrentId(detailData.id);
+      setVideoYear(detailData.year);
+      setVideoTitle(detailData.title || videoTitleRef.current);
+      setVideoCover(detailData.poster);
+      setVideoDoubanId(detailData.douban_id || 0);
+      setDetail(detailData);
+      setSourceSuggestion(null);
+      if (currentEpisodeIndex >= detailData.episodes.length) {
+        setCurrentEpisodeIndex(0);
+      }
+
+      // 规范URL参数
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('source', detailData.source);
+      newUrl.searchParams.set('id', detailData.id);
+      newUrl.searchParams.set('year', detailData.year);
+      newUrl.searchParams.set('title', detailData.title);
+      newUrl.searchParams.delete('prefer');
+      window.history.replaceState({}, '', newUrl.toString());
+
+      setLoadingStage('ready');
+      setLoadingMessage('✨ 准备就绪，即将开始播放...');
+      setTimeout(() => {
+        if (!cancelled) setLoading(false);
+      }, 250);
+    };
+
+    const runBackgroundPreference = async (
+      sourcesInfo: SearchResult[],
+      activeDetail: SearchResult
+    ) => {
+      if (!optimizationEnabled || sourcesInfo.length <= 1) return;
+
+      setIsBackgroundPreferring(true);
+      try {
+        const bestSource = await preferBestSource(sourcesInfo);
+        if (cancelled) return;
+
+        const isCurrent =
+          bestSource.source === activeDetail.source &&
+          bestSource.id === activeDetail.id;
+        setSourceSuggestion(isCurrent ? null : bestSource);
+      } catch (err) {
+        console.warn('后台优选播放源失败:', err);
+      } finally {
+        if (!cancelled) setIsBackgroundPreferring(false);
+      }
+    };
+
     const initAll = async () => {
       if (!currentSource && !currentId && !videoTitle && !searchTitle) {
         setError('缺少必要参数');
@@ -722,7 +795,29 @@ function PlayPageClient() {
           : '🔍 正在搜索播放源...'
       );
 
-      let sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
+      let sourcesInfo: SearchResult[] = [];
+
+      if (currentSource && currentId) {
+        sourcesInfo = await fetchSourceDetail(currentSource, currentId);
+        if (sourcesInfo.length > 0) {
+          applyDetailData(sourcesInfo[0]);
+        }
+
+        if (searchTitle || videoTitle) {
+          const searchedSources = await fetchSourcesData(
+            searchTitle || videoTitle
+          );
+          if (cancelled) return;
+
+          if (searchedSources.length > 0) {
+            sourcesInfo = searchedSources;
+            setAvailableSources(searchedSources);
+          }
+        }
+      } else {
+        sourcesInfo = await fetchSourcesData(searchTitle || videoTitle);
+      }
+
       if (
         currentSource &&
         currentId &&
@@ -753,50 +848,15 @@ function PlayPageClient() {
         }
       }
 
-      // 未指定源和 id 或需要优选，且开启优选开关
-      if (
-        (!currentSource || !currentId || needPreferRef.current) &&
-        optimizationEnabled
-      ) {
-        setLoadingStage('preferring');
-        setLoadingMessage('⚡ 正在优选最佳播放源...');
-
-        detailData = await preferBestSource(sourcesInfo);
-      }
-
-      console.log(detailData.source, detailData.id);
-
-      setNeedPrefer(false);
-      setCurrentSource(detailData.source);
-      setCurrentId(detailData.id);
-      setVideoYear(detailData.year);
-      setVideoTitle(detailData.title || videoTitleRef.current);
-      setVideoCover(detailData.poster);
-      setVideoDoubanId(detailData.douban_id || 0);
-      setDetail(detailData);
-      if (currentEpisodeIndex >= detailData.episodes.length) {
-        setCurrentEpisodeIndex(0);
-      }
-
-      // 规范URL参数
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('source', detailData.source);
-      newUrl.searchParams.set('id', detailData.id);
-      newUrl.searchParams.set('year', detailData.year);
-      newUrl.searchParams.set('title', detailData.title);
-      newUrl.searchParams.delete('prefer');
-      window.history.replaceState({}, '', newUrl.toString());
-
-      setLoadingStage('ready');
-      setLoadingMessage('✨ 准备就绪，即将开始播放...');
-
-      // 短暂延迟让用户看到完成状态
-      setTimeout(() => {
-        setLoading(false);
-      }, 1000);
+      applyDetailData(detailData);
+      runBackgroundPreference(sourcesInfo, detailData);
     };
 
     initAll();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 播放记录处理
@@ -828,7 +888,7 @@ function PlayPageClient() {
     };
 
     initFromHistory();
-  }, []);
+  }, [currentSource, currentId]);
 
   // 跳过片头片尾配置处理
   useEffect(() => {
@@ -847,7 +907,7 @@ function PlayPageClient() {
     };
 
     initSkipConfig();
-  }, []);
+  }, [currentSource, currentId]);
 
   // 处理换源
   const handleSourceChange = async (
@@ -1840,6 +1900,46 @@ function PlayPageClient() {
               </span>
             )}
           </h1>
+          <div className='mt-3 flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-400'>
+            <span className='rounded-full bg-green-500/10 px-3 py-1 font-medium text-green-700 dark:text-green-400'>
+              当前源 {currentSourceDetail?.source_name || detail?.source_name || currentSource || '加载中'}
+            </span>
+            {availableSources.length > 0 && (
+              <span className='rounded-full bg-gray-900/5 px-3 py-1 dark:bg-white/10'>
+                可换 {Math.max(availableSources.length - 1, 0)} 个源
+              </span>
+            )}
+            {currentSourceInfo && !currentSourceInfo.hasError && (
+              <span className='rounded-full bg-gray-900/5 px-3 py-1 tabular-nums dark:bg-white/10'>
+                {currentSourceInfo.quality} · {currentSourceInfo.loadSpeed} · {currentSourceInfo.pingTime}ms
+              </span>
+            )}
+            {currentSourceInfo?.hasError && (
+              <span className='rounded-full bg-red-500/10 px-3 py-1 text-red-600 dark:text-red-400'>
+                当前源测速失败，可尝试换源
+              </span>
+            )}
+            {isBackgroundPreferring && (
+              <span className='rounded-full bg-blue-500/10 px-3 py-1 text-blue-700 dark:text-blue-300'>
+                后台测速中
+              </span>
+            )}
+            {sourceSuggestion && (
+              <button
+                type='button'
+                onClick={() =>
+                  handleSourceChange(
+                    sourceSuggestion.source,
+                    sourceSuggestion.id,
+                    sourceSuggestion.title
+                  )
+                }
+                className='rounded-full bg-blue-600 px-3 py-1 font-medium text-white transition-colors hover:bg-blue-700'
+              >
+                推荐更快源 {sourceSuggestion.source_name}
+              </button>
+            )}
+          </div>
         </div>
         {/* 第二行：播放器和选集 */}
         <div className='space-y-2'>

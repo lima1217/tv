@@ -342,6 +342,43 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
     [onSourceChange]
   );
 
+  const rankedSources = useMemo(() => {
+    return availableSources.slice().sort((a, b) => {
+      const aKey = `${a.source}-${a.id}`;
+      const bKey = `${b.source}-${b.id}`;
+      const aInfo = videoInfoMap.get(aKey);
+      const bInfo = videoInfoMap.get(bKey);
+      const aIsCurrent =
+        a.source?.toString() === currentSource?.toString() &&
+        a.id?.toString() === currentId?.toString();
+      const bIsCurrent =
+        b.source?.toString() === currentSource?.toString() &&
+        b.id?.toString() === currentId?.toString();
+
+      if (aIsCurrent && !bIsCurrent) return -1;
+      if (!aIsCurrent && bIsCurrent) return 1;
+      if (aInfo?.hasError && !bInfo?.hasError) return 1;
+      if (!aInfo?.hasError && bInfo?.hasError) return -1;
+      if (aInfo && bInfo) return aInfo.pingTime - bInfo.pingTime;
+      if (aInfo && !bInfo) return -1;
+      if (!aInfo && bInfo) return 1;
+      return 0;
+    });
+  }, [availableSources, currentId, currentSource, videoInfoMap]);
+
+  const recommendedSourceKey = useMemo(() => {
+    const target = rankedSources.find((source) => {
+      const sourceKey = `${source.source}-${source.id}`;
+      const info = videoInfoMap.get(sourceKey);
+      const isCurrent =
+        source.source?.toString() === currentSource?.toString() &&
+        source.id?.toString() === currentId?.toString();
+      return !isCurrent && !info?.hasError;
+    });
+
+    return target ? `${target.source}-${target.id}` : '';
+  }, [currentId, currentSource, rankedSources, videoInfoMap]);
+
   const currentStart = currentPage * episodesPerPage + 1;
   const currentEnd = Math.min(
     currentStart + episodesPerPage - 1,
@@ -481,6 +518,21 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
       {/* 换源 Tab 内容 */}
       {activeTab === 'sources' && (
         <div className='flex flex-col h-full mt-4'>
+          {!sourceSearchLoading &&
+            !sourceSearchError &&
+            availableSources.length > 0 && (
+              <div className='mb-3 rounded-lg bg-white/60 px-3 py-2 text-xs text-gray-600 ring-1 ring-gray-200/60 dark:bg-white/5 dark:text-gray-300 dark:ring-white/10'>
+                <div className='flex items-center justify-between gap-3'>
+                  <span>
+                    共 {availableSources.length} 个播放源，当前源置顶，失败源靠后
+                  </span>
+                  <span className='shrink-0 text-green-600 dark:text-green-400'>
+                    {optimizationEnabled ? '测速开启' : '手动选择'}
+                  </span>
+                </div>
+              </div>
+            )}
+
           {sourceSearchLoading && (
             <div className='flex items-center justify-center py-8'>
               <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-green-500'></div>
@@ -518,32 +570,29 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
             !sourceSearchError &&
             availableSources.length > 0 && (
               <div className='flex-1 overflow-y-auto space-y-2 pb-20'>
-                {availableSources
-                  .sort((a, b) => {
-                    const aIsCurrent =
-                      a.source?.toString() === currentSource?.toString() &&
-                      a.id?.toString() === currentId?.toString();
-                    const bIsCurrent =
-                      b.source?.toString() === currentSource?.toString() &&
-                      b.id?.toString() === currentId?.toString();
-                    if (aIsCurrent && !bIsCurrent) return -1;
-                    if (!aIsCurrent && bIsCurrent) return 1;
-                    return 0;
-                  })
+                {rankedSources
                   .map((source, index) => {
                     const isCurrentSource =
                       source.source?.toString() === currentSource?.toString() &&
                       source.id?.toString() === currentId?.toString();
+                    const sourceKey = `${source.source}-${source.id}`;
+                    const videoInfo = videoInfoMap.get(sourceKey);
+                    const isRecommended =
+                      !isCurrentSource &&
+                      sourceKey === recommendedSourceKey &&
+                      !videoInfo?.hasError;
                     return (
                       <div
                         key={`${source.source}-${source.id}`}
                         onClick={() =>
                           !isCurrentSource && handleSourceClick(source)
                         }
-                        className={`flex items-start gap-3 px-2 py-3 rounded-lg transition-all select-none duration-200 relative
+                        className={`flex items-start gap-3 px-2 py-3 rounded-lg transition-[background-color,transform,opacity] select-none duration-200 relative
                       ${isCurrentSource
                             ? 'bg-green-500/10 dark:bg-green-500/20 border-green-500/30 border'
-                            : 'hover:bg-gray-200/50 dark:hover:bg-white/10 hover:scale-[1.02] cursor-pointer'
+                            : videoInfo?.hasError
+                              ? 'opacity-70 hover:bg-gray-200/40 dark:hover:bg-white/10 cursor-pointer'
+                              : 'hover:bg-gray-200/50 dark:hover:bg-white/10 hover:scale-[1.02] cursor-pointer'
                           }`.trim()}
                       >
                         {/* 封面 */}
@@ -577,10 +626,17 @@ const EpisodeSelector: React.FC<EpisodeSelectorProps> = ({
                                 </div>
                               )}
                             </div>
+                            {(isCurrentSource || isRecommended) && (
+                              <span
+                                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${isCurrentSource
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-gray-900 text-white dark:bg-white dark:text-gray-950'
+                                  }`}
+                              >
+                                {isCurrentSource ? '当前' : '推荐'}
+                              </span>
+                            )}
                             {(() => {
-                              const sourceKey = `${source.source}-${source.id}`;
-                              const videoInfo = videoInfoMap.get(sourceKey);
-
                               if (videoInfo && videoInfo.quality !== '未知') {
                                 if (videoInfo.hasError) {
                                   return (

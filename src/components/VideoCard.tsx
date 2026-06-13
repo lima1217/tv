@@ -47,6 +47,7 @@ export interface VideoCardProps {
   isBangumi?: boolean;
   isAggregate?: boolean;
   origin?: 'vod' | 'live';
+  priority?: boolean;
 }
 
 export type VideoCardHandle = {
@@ -76,6 +77,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
     isBangumi = false,
     isAggregate = false,
     origin = 'vod',
+    priority = false,
   }: VideoCardProps,
   ref
 ) {
@@ -552,7 +554,8 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
             fill
             className={origin === 'live' ? 'object-contain' : 'object-cover'}
             referrerPolicy='no-referrer'
-            loading='lazy'
+            priority={priority}
+            loading={priority ? undefined : 'lazy'}
             onLoadingComplete={() => setIsLoading(true)}
             onError={(e) => {
               // 图片加载失败时的重试机制
@@ -789,7 +792,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
 
             return (
               <div
-                className='absolute bottom-2 right-2 opacity-0 transition-all duration-300 ease-in-out delay-75 sm:group-hover:opacity-100'
+                className='absolute bottom-2 right-2 opacity-100 transition-opacity duration-200'
                 style={{
                   WebkitUserSelect: 'none',
                   userSelect: 'none',
@@ -809,7 +812,7 @@ const VideoCard = forwardRef<VideoCardHandle, VideoCardProps>(function VideoCard
                   } as React.CSSProperties}
                 >
                   <div
-                    className='bg-gray-700 text-white text-xs font-bold w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center shadow-md hover:bg-gray-600 hover:scale-[1.1] transition-all duration-300 ease-out cursor-pointer'
+                    className='bg-gray-900/85 text-white text-xs font-bold min-w-7 h-7 px-2 rounded-full flex items-center justify-center shadow-md ring-1 ring-white/15 transition-colors duration-200 cursor-pointer dark:bg-gray-950/90'
                     style={{
                       WebkitUserSelect: 'none',
                       userSelect: 'none',

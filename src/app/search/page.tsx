@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps, @typescript-eslint/no-explicit-any,@typescript-eslint/no-non-null-assertion,no-empty */
 'use client';
 
-import { ChevronUp, Search, X } from 'lucide-react';
+import { CheckCircle2, ChevronUp, Layers3, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { startTransition, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -335,6 +335,18 @@ function SearchPageClient() {
         bTitle.localeCompare(aTitle);
     });
   }, [aggregatedResults, filterAgg, searchQuery]);
+
+  const searchStats = useMemo(() => {
+    const sourceCount = new Set(
+      searchResults.map((item) => item.source).filter(Boolean)
+    ).size;
+
+    return {
+      rawCount: searchResults.length,
+      groupCount: aggregatedResults.length,
+      sourceCount,
+    };
+  }, [aggregatedResults.length, searchResults]);
 
   useEffect(() => {
     // 无搜索参数时聚焦搜索框
@@ -702,20 +714,58 @@ function SearchPageClient() {
           {showResults ? (
             <section className='mb-12'>
               {/* 标题 */}
-              <div className='mb-4'>
-                <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
-                  搜索结果
+              <div className='mb-4 rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-gray-200/60 dark:bg-gray-900/60 dark:ring-white/10'>
+                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                  <div>
+                    <h2 className='text-xl font-bold tracking-tight text-gray-900 dark:text-gray-100'>
+                      搜索结果
+                    </h2>
+                    <p className='mt-1 text-sm text-gray-500 dark:text-gray-400'>
+                      默认聚合相同片名，优先减少重复选择。
+                    </p>
+                  </div>
                   {totalSources > 0 && useFluidSearch && (
-                    <span className='ml-2 text-sm font-normal text-gray-500 dark:text-gray-400'>
-                      {completedSources}/{totalSources}
-                    </span>
+                    <div className='inline-flex items-center gap-2 rounded-full bg-gray-900/5 px-3 py-1.5 text-sm text-gray-700 dark:bg-white/10 dark:text-gray-300'>
+                      {isLoading ? (
+                        <span className='inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-green-500 animate-spin'></span>
+                      ) : (
+                        <CheckCircle2 className='h-4 w-4 text-green-600 dark:text-green-400' />
+                      )}
+                      <span className='tabular-nums'>
+                        {completedSources}/{totalSources} 源
+                      </span>
+                    </div>
                   )}
-                  {isLoading && useFluidSearch && (
-                    <span className='ml-2 inline-block align-middle'>
-                      <span className='inline-block h-3 w-3 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin'></span>
-                    </span>
-                  )}
-                </h2>
+                </div>
+
+                {searchResults.length > 0 && (
+                  <div className='mt-4 grid grid-cols-3 gap-2 text-center text-xs sm:flex sm:text-left'>
+                    <div className='rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-950/50'>
+                      <div className='font-semibold text-gray-900 tabular-nums dark:text-gray-100'>
+                        {searchStats.groupCount}
+                      </div>
+                      <div className='mt-0.5 text-gray-500 dark:text-gray-400'>
+                        聚合标题
+                      </div>
+                    </div>
+                    <div className='rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-950/50'>
+                      <div className='font-semibold text-gray-900 tabular-nums dark:text-gray-100'>
+                        {searchStats.rawCount}
+                      </div>
+                      <div className='mt-0.5 text-gray-500 dark:text-gray-400'>
+                        原始结果
+                      </div>
+                    </div>
+                    <div className='rounded-xl bg-gray-50 px-3 py-2 dark:bg-gray-950/50'>
+                      <div className='font-semibold text-gray-900 tabular-nums dark:text-gray-100'>
+                        {searchStats.sourceCount}
+                      </div>
+                      <div className='mt-0.5 text-gray-500 dark:text-gray-400'>
+                        可用来源
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               {/* 筛选器 + 聚合开关 同行 */}
               <div className='mb-8 flex items-center justify-between gap-3'>
@@ -736,6 +786,7 @@ function SearchPageClient() {
                 </div>
                 {/* 聚合开关 */}
                 <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
+                  <Layers3 className='h-4 w-4 text-gray-500 dark:text-gray-400' />
                   <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>聚合</span>
                   <div className='relative'>
                     <input

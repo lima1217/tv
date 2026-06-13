@@ -2,9 +2,10 @@
 
 'use client';
 
-import { ChevronRight } from 'lucide-react';
+import { Bookmark, ChevronRight, Clock, Search, Sparkles } from 'lucide-react';
 import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useEffect, useMemo, useState } from 'react';
 
 import {
   BangumiCalendarData,
@@ -15,6 +16,7 @@ import {
   clearAllFavorites,
   getAllFavorites,
   getAllPlayRecords,
+  getSearchHistory,
   subscribeToDataUpdates,
 } from '@/lib/db.client';
 import { getDoubanCategories } from '@/lib/douban.client';
@@ -27,8 +29,23 @@ import ScrollableRow from '@/components/ScrollableRow';
 import { useSite } from '@/components/SiteProvider';
 import VideoCard from '@/components/VideoCard';
 
+const RECOMMEND_CACHE_KEY = 'moontv_home_recommend_cache_v1';
+const RECOMMEND_CACHE_TTL = 10 * 60 * 1000;
+
+type RecommendCache = {
+  savedAt: number;
+  hotMovies: DoubanItem[];
+  hotTvShows: DoubanItem[];
+  hotVarietyShows: DoubanItem[];
+  bangumiCalendarData: BangumiCalendarData[];
+};
+
 function HomeClient() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'home' | 'favorites'>('home');
+  const [quickSearch, setQuickSearch] = useState('');
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [hotMovies, setHotMovies] = useState<DoubanItem[]>([]);
   const [hotTvShows, setHotTvShows] = useState<DoubanItem[]>([]);
   const [hotVarietyShows, setHotVarietyShows] = useState<DoubanItem[]>([]);
@@ -68,9 +85,54 @@ function HomeClient() {
   const [favoriteItems, setFavoriteItems] = useState<FavoriteItem[]>([]);
 
   useEffect(() => {
+    const tab = searchParams.get('tab');
+    setActiveTab(tab === 'favorites' ? 'favorites' : 'home');
+  }, [searchParams]);
+
+  useEffect(() => {
+    getSearchHistory()
+      .then((history) => setRecentSearches(history.slice(0, 6)))
+      .catch(() => setRecentSearches([]));
+  }, []);
+
+  useEffect(() => {
     const fetchRecommendData = async () => {
+      const applyCache = (cache: RecommendCache) => {
+        setHotMovies(cache.hotMovies);
+        setHotTvShows(cache.hotTvShows);
+        setHotVarietyShows(cache.hotVarietyShows);
+        setBangumiCalendarData(cache.bangumiCalendarData);
+      };
+
+      const readCachedRecommendData = (): RecommendCache | null => {
+        try {
+          const rawCache = localStorage.getItem(RECOMMEND_CACHE_KEY);
+          if (!rawCache) return null;
+
+          const cache = JSON.parse(rawCache) as RecommendCache;
+          const hasData =
+            cache.hotMovies?.length ||
+            cache.hotTvShows?.length ||
+            cache.hotVarietyShows?.length ||
+            cache.bangumiCalendarData?.length;
+
+          if (!hasData) return null;
+
+          applyCache(cache);
+          setLoading(false);
+          return cache;
+        } catch {
+          return null;
+        }
+      };
+
+      const cachedRecommendData = readCachedRecommendData();
+      const hasFreshCache =
+        !!cachedRecommendData &&
+        Date.now() - cachedRecommendData.savedAt < RECOMMEND_CACHE_TTL;
+
       try {
-        setLoading(true);
+        setLoading(!hasFreshCache);
 
         // 并行获取热门电影、热门剧集、热门综艺和番剧日历
         // 使用 allSettled 避免单个请求失败导致全部数据为空
@@ -86,13 +148,23 @@ function HomeClient() {
             GetBangumiCalendarData(),
           ]);
 
+        const nextCache: RecommendCache = {
+          savedAt: Date.now(),
+          hotMovies: cachedRecommendData?.hotMovies || [],
+          hotTvShows: cachedRecommendData?.hotTvShows || [],
+          hotVarietyShows: cachedRecommendData?.hotVarietyShows || [],
+          bangumiCalendarData: cachedRecommendData?.bangumiCalendarData || [],
+        };
+
         if (moviesRes.status === 'fulfilled' && moviesRes.value.code === 200) {
+          nextCache.hotMovies = moviesRes.value.list;
           setHotMovies(moviesRes.value.list);
         } else if (moviesRes.status === 'rejected') {
           console.error('获取热门电影失败:', moviesRes.reason);
         }
 
         if (tvShowsRes.status === 'fulfilled' && tvShowsRes.value.code === 200) {
+          nextCache.hotTvShows = tvShowsRes.value.list;
           setHotTvShows(tvShowsRes.value.list);
         } else if (tvShowsRes.status === 'rejected') {
           console.error('获取热门剧集失败:', tvShowsRes.reason);
@@ -102,16 +174,20 @@ function HomeClient() {
           varietyShowsRes.status === 'fulfilled' &&
           varietyShowsRes.value.code === 200
         ) {
+          nextCache.hotVarietyShows = varietyShowsRes.value.list;
           setHotVarietyShows(varietyShowsRes.value.list);
         } else if (varietyShowsRes.status === 'rejected') {
           console.error('获取热门综艺失败:', varietyShowsRes.reason);
         }
 
         if (bangumiRes.status === 'fulfilled') {
+          nextCache.bangumiCalendarData = bangumiRes.value;
           setBangumiCalendarData(bangumiRes.value);
         } else {
           console.error('获取番剧日历失败:', bangumiRes.reason);
         }
+
+        localStorage.setItem(RECOMMEND_CACHE_KEY, JSON.stringify(nextCache));
       } catch (error) {
         console.error('获取推荐数据失败:', error);
       } finally {
@@ -154,6 +230,28 @@ function HomeClient() {
     setFavoriteItems(sorted);
   };
 
+  const groupedFavorites = useMemo(() => {
+    const watching = favoriteItems.filter(
+      (item) =>
+        item.currentEpisode &&
+        item.episodes > 1 &&
+        item.currentEpisode < item.episodes
+    );
+    const watched = favoriteItems.filter(
+      (item) =>
+        item.currentEpisode &&
+        item.episodes > 0 &&
+        item.currentEpisode >= item.episodes
+    );
+    const wantToWatch = favoriteItems.filter((item) => !item.currentEpisode);
+
+    return [
+      { key: 'watching', title: '在追', items: watching },
+      { key: 'want', title: '想看', items: wantToWatch },
+      { key: 'watched', title: '已看', items: watched },
+    ].filter((group) => group.items.length > 0);
+  }, [favoriteItems]);
+
   // 当切换到收藏夹时加载收藏数据
   useEffect(() => {
     if (activeTab !== 'favorites') return;
@@ -181,9 +279,112 @@ function HomeClient() {
     localStorage.setItem('hasSeenAnnouncement', announcement); // 记录已查看弹窗
   };
 
+  const handleQuickSearch = (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = quickSearch.trim().replace(/\s+/g, ' ');
+    if (!trimmed) return;
+    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+  };
+
+  const changeTab = (tab: 'home' | 'favorites') => {
+    setActiveTab(tab);
+    router.replace(tab === 'favorites' ? '/?tab=favorites' : '/', {
+      scroll: false,
+    });
+  };
+
+  const renderFavoriteGrid = (items: FavoriteItem[]) => (
+    <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'>
+      {items.map((item) => (
+        <div key={item.id + item.source} className='w-full'>
+          <VideoCard
+            query={item.search_title}
+            {...item}
+            from='favorite'
+            type={item.episodes > 1 ? 'tv' : ''}
+          />
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <PageLayout>
       <div className='px-2 sm:px-10 py-4 sm:py-8 overflow-visible'>
+        <section className='mx-auto mb-6 max-w-[95%] rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-gray-200/60 dark:bg-gray-900/60 dark:ring-white/10 sm:p-6'>
+          <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
+            <div>
+              <div className='mb-2 flex items-center gap-2 text-xs font-medium text-green-700 dark:text-green-400'>
+                <Sparkles className='h-4 w-4' />
+                观影控制台
+              </div>
+              <h1 className='text-2xl font-bold tracking-tight text-gray-950 dark:text-gray-100 sm:text-3xl'>
+                搜片、续播、收藏，都从这里开始
+              </h1>
+              <p className='mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400'>
+                优先展示你的观影任务，热门内容只做补充。
+              </p>
+            </div>
+
+            <div className='grid grid-cols-2 gap-2 text-sm sm:flex'>
+              <button
+                type='button'
+                onClick={() => changeTab('home')}
+                className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 font-medium text-white transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200'
+              >
+                <Clock className='h-4 w-4' />
+                继续观看
+              </button>
+              <button
+                type='button'
+                onClick={() => changeTab('favorites')}
+                className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 font-medium text-white transition-colors hover:bg-green-700'
+              >
+                <Bookmark className='h-4 w-4' />
+                我的收藏
+              </button>
+            </div>
+          </div>
+
+          <form onSubmit={handleQuickSearch} className='mt-5'>
+            <div className='relative'>
+              <Search className='absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
+              <input
+                value={quickSearch}
+                onChange={(event) => setQuickSearch(event.target.value)}
+                placeholder='输入片名，直接聚合搜索'
+                className='h-12 w-full rounded-xl bg-gray-50 pl-12 pr-28 text-sm text-gray-900 shadow-inner ring-1 ring-gray-200/70 transition-shadow placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-950/60 dark:text-gray-100 dark:ring-white/10'
+              />
+              <button
+                type='submit'
+                className='absolute right-1.5 top-1/2 inline-flex h-9 -translate-y-1/2 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white transition-colors hover:bg-green-700'
+              >
+                搜索
+              </button>
+            </div>
+          </form>
+
+          {recentSearches.length > 0 && (
+            <div className='mt-4 flex flex-wrap items-center gap-2'>
+              <span className='text-xs text-gray-500 dark:text-gray-400'>
+                最近搜索
+              </span>
+              {recentSearches.map((item) => (
+                <button
+                  key={item}
+                  type='button'
+                  onClick={() =>
+                    router.push(`/search?q=${encodeURIComponent(item.trim())}`)
+                  }
+                  className='rounded-full bg-gray-900/5 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-green-500/10 hover:text-green-700 dark:bg-white/10 dark:text-gray-300 dark:hover:text-green-400'
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* 顶部 Tab 切换 */}
         <div className='mb-8 flex justify-center'>
           <CapsuleSwitch
@@ -192,7 +393,7 @@ function HomeClient() {
               { label: '收藏夹', value: 'favorites' },
             ]}
             active={activeTab}
-            onChange={(value) => setActiveTab(value as 'home' | 'favorites')}
+            onChange={(value) => changeTab(value as 'home' | 'favorites')}
           />
         </div>
 
@@ -216,23 +417,27 @@ function HomeClient() {
                   </button>
                 )}
               </div>
-              <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'>
-                {favoriteItems.map((item) => (
-                  <div key={item.id + item.source} className='w-full'>
-                    <VideoCard
-                      query={item.search_title}
-                      {...item}
-                      from='favorite'
-                      type={item.episodes > 1 ? 'tv' : ''}
-                    />
-                  </div>
-                ))}
-                {favoriteItems.length === 0 && (
-                  <div className='col-span-full text-center text-gray-500 py-8 dark:text-gray-400'>
-                    暂无收藏内容
-                  </div>
-                )}
-              </div>
+              {favoriteItems.length === 0 ? (
+                <div className='rounded-xl bg-white/60 py-12 text-center text-gray-500 ring-1 ring-gray-200/60 dark:bg-gray-900/50 dark:text-gray-400 dark:ring-white/10'>
+                  暂无收藏内容
+                </div>
+              ) : (
+                <div className='space-y-10'>
+                  {groupedFavorites.map((group) => (
+                    <section key={group.key}>
+                      <div className='mb-4 flex items-center gap-2'>
+                        <h3 className='text-base font-semibold text-gray-800 dark:text-gray-200'>
+                          {group.title}
+                        </h3>
+                        <span className='rounded-full bg-gray-900/5 px-2 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400'>
+                          {group.items.length}
+                        </span>
+                      </div>
+                      {renderFavoriteGrid(group.items)}
+                    </section>
+                  ))}
+                </div>
+              )}
             </section>
           ) : (
             // 首页视图
@@ -282,6 +487,7 @@ function HomeClient() {
                           rate={movie.rate}
                           year={movie.year}
                           type='movie'
+                          priority={index < 4}
                         />
                       </div>
                     ))}
@@ -329,6 +535,7 @@ function HomeClient() {
                           douban_id={Number(show.id)}
                           rate={show.rate}
                           year={show.year}
+                          priority={index < 4}
                         />
                       </div>
                     ))}
@@ -403,6 +610,7 @@ function HomeClient() {
                             rate={anime.rating?.score?.toFixed(1) || ''}
                             year={anime.air_date?.split('-')?.[0] || ''}
                             isBangumi={true}
+                            priority={index < 4}
                           />
                         </div>
                       ));
@@ -451,6 +659,7 @@ function HomeClient() {
                           douban_id={Number(show.id)}
                           rate={show.rate}
                           year={show.year}
+                          priority={index < 4}
                         />
                       </div>
                     ))}
