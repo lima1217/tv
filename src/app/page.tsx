@@ -2,7 +2,7 @@
 
 'use client';
 
-import { Bookmark, ChevronRight, Clock, Search, Sparkles } from 'lucide-react';
+import { ChevronRight, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FormEvent, Suspense, useEffect, useMemo, useState } from 'react';
@@ -22,7 +22,6 @@ import {
 import { getDoubanCategories } from '@/lib/douban.client';
 import { DoubanItem } from '@/lib/types';
 
-import CapsuleSwitch from '@/components/CapsuleSwitch';
 import ContinueWatching from '@/components/ContinueWatching';
 import PageLayout from '@/components/PageLayout';
 import ScrollableRow from '@/components/ScrollableRow';
@@ -286,13 +285,6 @@ function HomeClient() {
     router.push(`/search?q=${encodeURIComponent(trimmed)}`);
   };
 
-  const changeTab = (tab: 'home' | 'favorites') => {
-    setActiveTab(tab);
-    router.replace(tab === 'favorites' ? '/?tab=favorites' : '/', {
-      scroll: false,
-    });
-  };
-
   const renderFavoriteGrid = (items: FavoriteItem[]) => (
     <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-14 sm:gap-y-20 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,_minmax(11rem,_1fr))] sm:gap-x-8'>
       {items.map((item) => (
@@ -310,54 +302,31 @@ function HomeClient() {
 
   return (
     <PageLayout>
-      <div className='px-2 sm:px-10 py-4 sm:py-8 overflow-visible'>
-        <section className='mx-auto mb-6 max-w-[95%] rounded-2xl bg-white/70 p-4 shadow-sm ring-1 ring-gray-200/60 dark:bg-gray-900/60 dark:ring-white/10 sm:p-6'>
-          <div className='grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center'>
+      <div className='overflow-visible px-3 py-4 sm:px-8 sm:py-8 lg:px-10'>
+        <section className='mx-auto mb-8 max-w-[95%]'>
+          <div className='mb-3 flex items-end justify-between gap-4'>
             <div>
-              <div className='mb-2 flex items-center gap-2 text-xs font-medium text-green-700 dark:text-green-400'>
-                <Sparkles className='h-4 w-4' />
-                观影控制台
-              </div>
-              <h1 className='text-2xl font-bold tracking-tight text-gray-950 dark:text-gray-100 sm:text-3xl'>
-                搜片、续播、收藏，都从这里开始
-              </h1>
-              <p className='mt-2 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400'>
-                优先展示你的观影任务，热门内容只做补充。
+              <p className='hidden text-xs font-medium text-gray-500 dark:text-gray-400 sm:block'>
+                MoonTV
               </p>
-            </div>
-
-            <div className='grid grid-cols-2 gap-2 text-sm sm:flex'>
-              <button
-                type='button'
-                onClick={() => changeTab('home')}
-                className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-gray-900 px-4 font-medium text-white transition-colors hover:bg-gray-800 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200'
-              >
-                <Clock className='h-4 w-4' />
-                继续观看
-              </button>
-              <button
-                type='button'
-                onClick={() => changeTab('favorites')}
-                className='inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-green-600 px-4 font-medium text-white transition-colors hover:bg-green-700'
-              >
-                <Bookmark className='h-4 w-4' />
-                我的收藏
-              </button>
+              <h1 className='mt-1 text-2xl font-semibold tracking-tight text-gray-950 dark:text-gray-100 sm:text-3xl'>
+                观影台
+              </h1>
             </div>
           </div>
 
-          <form onSubmit={handleQuickSearch} className='mt-5'>
-            <div className='relative'>
-              <Search className='absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
+          <form onSubmit={handleQuickSearch}>
+            <div className='relative rounded-2xl bg-white/85 p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/70 dark:bg-white/[0.04] dark:shadow-none dark:ring-white/10'>
+              <Search className='absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
               <input
                 value={quickSearch}
                 onChange={(event) => setQuickSearch(event.target.value)}
-                placeholder='输入片名，直接聚合搜索'
-                className='h-12 w-full rounded-xl bg-gray-50 pl-12 pr-28 text-sm text-gray-900 shadow-inner ring-1 ring-gray-200/70 transition-shadow placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-gray-950/60 dark:text-gray-100 dark:ring-white/10'
+                placeholder='输入片名，聚合搜索'
+                className='h-12 w-full rounded-xl bg-transparent pl-12 pr-24 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-500'
               />
               <button
                 type='submit'
-                className='absolute right-1.5 top-1/2 inline-flex h-9 -translate-y-1/2 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white transition-colors hover:bg-green-700'
+                className='absolute right-2 top-1/2 inline-flex h-9 -translate-y-1/2 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white transition-[background-color,transform] active:scale-95 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:ring-offset-gray-950'
               >
                 搜索
               </button>
@@ -376,7 +345,7 @@ function HomeClient() {
                   onClick={() =>
                     router.push(`/search?q=${encodeURIComponent(item.trim())}`)
                   }
-                  className='rounded-full bg-gray-900/5 px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-green-500/10 hover:text-green-700 dark:bg-white/10 dark:text-gray-300 dark:hover:text-green-400'
+                  className='rounded-full bg-gray-900/5 px-3 py-1.5 text-xs text-gray-700 transition-[background-color,color,transform] active:scale-95 hover:bg-green-500/10 hover:text-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-white/10 dark:text-gray-300 dark:hover:text-green-400'
                 >
                   {item}
                 </button>
@@ -384,18 +353,6 @@ function HomeClient() {
             </div>
           )}
         </section>
-
-        {/* 顶部 Tab 切换 */}
-        <div className='mb-8 flex justify-center'>
-          <CapsuleSwitch
-            options={[
-              { label: '首页', value: 'home' },
-              { label: '收藏夹', value: 'favorites' },
-            ]}
-            active={activeTab}
-            onChange={(value) => changeTab(value as 'home' | 'favorites')}
-          />
-        </div>
 
         <div className='max-w-[95%] mx-auto'>
           {activeTab === 'favorites' ? (

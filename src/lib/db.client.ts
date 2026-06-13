@@ -85,7 +85,6 @@ const STORAGE_TYPE = (() => {
       (window as any).RUNTIME_CONFIG?.STORAGE_TYPE) ||
     (process.env.STORAGE_TYPE as
       | 'localstorage'
-      | 'redis'
       | 'upstash'
       | undefined) ||
     'localstorage';
@@ -485,8 +484,26 @@ async function fetchWithAuth(
 }
 
 async function fetchFromApi<T>(path: string): Promise<T> {
-  const res = await fetchWithAuth(path);
+  const res = await fetchWithAuth(path, { cache: 'no-store' });
   return (await res.json()) as T;
+}
+
+async function fetchFreshPrivateData<T>(
+  path: string,
+  cacheFreshData: (data: T) => void,
+  getCachedData: () => T | null,
+  fallbackData: T,
+  errorMessage: string
+): Promise<T> {
+  try {
+    const freshData = await fetchFromApi<T>(path);
+    cacheFreshData(freshData);
+    return freshData;
+  } catch (err) {
+    console.error(`${errorMessage}:`, err);
+    triggerGlobalError(errorMessage);
+    return getCachedData() || fallbackData;
+  }
 }
 
 /**
@@ -499,7 +516,7 @@ export function generateStorageKey(source: string, id: string): string {
 // ---- API ----
 /**
  * 读取全部播放记录。
- * 非本地存储模式下使用混合缓存策略：优先返回缓存数据，后台异步同步最新数据。
+ * 数据库存储模式下以服务端数据为准，本机缓存只在网络失败时兜底。
  * 在服务端渲染阶段 (window === undefined) 时返回空对象，避免报错。
  */
 export async function getAllPlayRecords(): Promise<Record<string, PlayRecord>> {
@@ -508,46 +525,14 @@ export async function getAllPlayRecords(): Promise<Record<string, PlayRecord>> {
     return {};
   }
 
-  // 数据库存储模式：使用混合缓存策略（包括 redis 和 upstash）
   if (STORAGE_TYPE !== 'localstorage') {
-    // 优先从缓存获取数据
-    const cachedData = cacheManager.getCachedPlayRecords();
-
-    if (cachedData) {
-      // 返回缓存数据，同时后台异步更新
-      fetchFromApi<Record<string, PlayRecord>>(`/api/playrecords`)
-        .then((freshData) => {
-          // 只有数据真正不同时才更新缓存
-          if (JSON.stringify(cachedData) !== JSON.stringify(freshData)) {
-            cacheManager.cachePlayRecords(freshData);
-            // 触发数据更新事件，供组件监听
-            window.dispatchEvent(
-              new CustomEvent('playRecordsUpdated', {
-                detail: freshData,
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('后台同步播放记录失败:', err);
-          triggerGlobalError('后台同步播放记录失败');
-        });
-
-      return cachedData;
-    } else {
-      // 缓存为空，直接从 API 获取并缓存
-      try {
-        const freshData = await fetchFromApi<Record<string, PlayRecord>>(
-          `/api/playrecords`
-        );
-        cacheManager.cachePlayRecords(freshData);
-        return freshData;
-      } catch (err) {
-        console.error('获取播放记录失败:', err);
-        triggerGlobalError('获取播放记录失败');
-        return {};
-      }
-    }
+    return fetchFreshPrivateData<Record<string, PlayRecord>>(
+      '/api/playrecords',
+      (freshData) => cacheManager.cachePlayRecords(freshData),
+      () => cacheManager.getCachedPlayRecords(),
+      {},
+      '获取播放记录失败'
+    );
   }
 
   // localstorage 模式
@@ -573,7 +558,7 @@ export async function savePlayRecord(
 ): Promise<void> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedRecords = cacheManager.getCachedPlayRecords() || {};
@@ -636,7 +621,7 @@ export async function deletePlayRecord(
 ): Promise<void> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedRecords = cacheManager.getCachedPlayRecords() || {};
@@ -689,7 +674,7 @@ export async function deletePlayRecord(
 
 /**
  * 获取搜索历史。
- * 数据库存储模式下使用混合缓存策略：优先返回缓存数据，后台异步同步最新数据。
+ * 数据库存储模式下以服务端数据为准，本机缓存只在网络失败时兜底。
  */
 export async function getSearchHistory(): Promise<string[]> {
   // 服务器端渲染阶段直接返回空
@@ -697,44 +682,14 @@ export async function getSearchHistory(): Promise<string[]> {
     return [];
   }
 
-  // 数据库存储模式：使用混合缓存策略（包括 redis 和 upstash）
   if (STORAGE_TYPE !== 'localstorage') {
-    // 优先从缓存获取数据
-    const cachedData = cacheManager.getCachedSearchHistory();
-
-    if (cachedData) {
-      // 返回缓存数据，同时后台异步更新
-      fetchFromApi<string[]>(`/api/searchhistory`)
-        .then((freshData) => {
-          // 只有数据真正不同时才更新缓存
-          if (JSON.stringify(cachedData) !== JSON.stringify(freshData)) {
-            cacheManager.cacheSearchHistory(freshData);
-            // 触发数据更新事件
-            window.dispatchEvent(
-              new CustomEvent('searchHistoryUpdated', {
-                detail: freshData,
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('后台同步搜索历史失败:', err);
-          triggerGlobalError('后台同步搜索历史失败');
-        });
-
-      return cachedData;
-    } else {
-      // 缓存为空，直接从 API 获取并缓存
-      try {
-        const freshData = await fetchFromApi<string[]>(`/api/searchhistory`);
-        cacheManager.cacheSearchHistory(freshData);
-        return freshData;
-      } catch (err) {
-        console.error('获取搜索历史失败:', err);
-        triggerGlobalError('获取搜索历史失败');
-        return [];
-      }
-    }
+    return fetchFreshPrivateData<string[]>(
+      '/api/searchhistory',
+      (freshData) => cacheManager.cacheSearchHistory(freshData),
+      () => cacheManager.getCachedSearchHistory(),
+      [],
+      '获取搜索历史失败'
+    );
   }
 
   // localStorage 模式
@@ -759,7 +714,7 @@ export async function addSearchHistory(keyword: string): Promise<void> {
   const trimmed = keyword.trim();
   if (!trimmed) return;
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedHistory = cacheManager.getCachedSearchHistory() || [];
@@ -819,7 +774,7 @@ export async function addSearchHistory(keyword: string): Promise<void> {
  * 数据库存储模式下使用乐观更新：先更新缓存，再异步同步到数据库。
  */
 export async function clearSearchHistory(): Promise<void> {
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     cacheManager.cacheSearchHistory([]);
@@ -860,7 +815,7 @@ export async function deleteSearchHistory(keyword: string): Promise<void> {
   const trimmed = keyword.trim();
   if (!trimmed) return;
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedHistory = cacheManager.getCachedSearchHistory() || [];
@@ -910,7 +865,7 @@ export async function deleteSearchHistory(keyword: string): Promise<void> {
 
 /**
  * 获取全部收藏。
- * 数据库存储模式下使用混合缓存策略：优先返回缓存数据，后台异步同步最新数据。
+ * 数据库存储模式下以服务端数据为准，本机缓存只在网络失败时兜底。
  */
 export async function getAllFavorites(): Promise<Record<string, Favorite>> {
   // 服务器端渲染阶段直接返回空
@@ -918,45 +873,18 @@ export async function getAllFavorites(): Promise<Record<string, Favorite>> {
     return {};
   }
 
-  // 数据库存储模式：使用混合缓存策略（包括 redis 和 upstash）
+  // 数据库存储模式：跨设备收藏必须以数据库为准
   if (STORAGE_TYPE !== 'localstorage') {
-    // 优先从缓存获取数据
-    const cachedData = cacheManager.getCachedFavorites();
-
-    if (cachedData) {
-      // 返回缓存数据，同时后台异步更新
-      fetchFromApi<Record<string, Favorite>>(`/api/favorites`)
-        .then((freshData) => {
-          // 只有数据真正不同时才更新缓存
-          if (JSON.stringify(cachedData) !== JSON.stringify(freshData)) {
-            cacheManager.cacheFavorites(freshData);
-            // 触发数据更新事件
-            window.dispatchEvent(
-              new CustomEvent('favoritesUpdated', {
-                detail: freshData,
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('后台同步收藏失败:', err);
-          triggerGlobalError('后台同步收藏失败');
-        });
-
-      return cachedData;
-    } else {
-      // 缓存为空，直接从 API 获取并缓存
-      try {
-        const freshData = await fetchFromApi<Record<string, Favorite>>(
-          `/api/favorites`
-        );
-        cacheManager.cacheFavorites(freshData);
-        return freshData;
-      } catch (err) {
-        console.error('获取收藏失败:', err);
-        triggerGlobalError('获取收藏失败');
-        return {};
-      }
+    try {
+      const freshData = await fetchFromApi<Record<string, Favorite>>(
+        `/api/favorites`
+      );
+      cacheManager.cacheFavorites(freshData);
+      return freshData;
+    } catch (err) {
+      console.error('获取收藏失败:', err);
+      triggerGlobalError('获取收藏失败');
+      return cacheManager.getCachedFavorites() || {};
     }
   }
 
@@ -983,7 +911,7 @@ export async function saveFavorite(
 ): Promise<void> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedFavorites = cacheManager.getCachedFavorites() || {};
@@ -1046,7 +974,7 @@ export async function deleteFavorite(
 ): Promise<void> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedFavorites = cacheManager.getCachedFavorites() || {};
@@ -1097,7 +1025,7 @@ export async function deleteFavorite(
 
 /**
  * 判断是否已收藏。
- * 数据库存储模式下使用混合缓存策略：优先返回缓存数据，后台异步同步最新数据。
+ * 数据库存储模式下以服务端数据为准，避免跨设备旧缓存误判。
  */
 export async function isFavorited(
   source: string,
@@ -1105,44 +1033,18 @@ export async function isFavorited(
 ): Promise<boolean> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：使用混合缓存策略（包括 redis 和 upstash）
+  // 数据库存储模式：跨设备收藏状态必须以数据库为准
   if (STORAGE_TYPE !== 'localstorage') {
-    const cachedFavorites = cacheManager.getCachedFavorites();
-
-    if (cachedFavorites) {
-      // 返回缓存数据，同时后台异步更新
-      fetchFromApi<Record<string, Favorite>>(`/api/favorites`)
-        .then((freshData) => {
-          // 只有数据真正不同时才更新缓存
-          if (JSON.stringify(cachedFavorites) !== JSON.stringify(freshData)) {
-            cacheManager.cacheFavorites(freshData);
-            // 触发数据更新事件
-            window.dispatchEvent(
-              new CustomEvent('favoritesUpdated', {
-                detail: freshData,
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('后台同步收藏失败:', err);
-          triggerGlobalError('后台同步收藏失败');
-        });
-
-      return !!cachedFavorites[key];
-    } else {
-      // 缓存为空，直接从 API 获取并缓存
-      try {
-        const freshData = await fetchFromApi<Record<string, Favorite>>(
-          `/api/favorites`
-        );
-        cacheManager.cacheFavorites(freshData);
-        return !!freshData[key];
-      } catch (err) {
-        console.error('检查收藏状态失败:', err);
-        triggerGlobalError('检查收藏状态失败');
-        return false;
-      }
+    try {
+      const freshData = await fetchFromApi<Record<string, Favorite>>(
+        `/api/favorites`
+      );
+      cacheManager.cacheFavorites(freshData);
+      return !!freshData[key];
+    } catch (err) {
+      console.error('检查收藏状态失败:', err);
+      triggerGlobalError('检查收藏状态失败');
+      return !!cacheManager.getCachedFavorites()?.[key];
     }
   }
 
@@ -1156,7 +1058,7 @@ export async function isFavorited(
  * 数据库存储模式下使用乐观更新：先更新缓存，再异步同步到数据库。
  */
 export async function clearAllPlayRecords(): Promise<void> {
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     cacheManager.cachePlayRecords({});
@@ -1197,7 +1099,7 @@ export async function clearAllPlayRecords(): Promise<void> {
  * 数据库存储模式下使用乐观更新：先更新缓存，再异步同步到数据库。
  */
 export async function clearAllFavorites(): Promise<void> {
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     cacheManager.cacheFavorites({});
@@ -1401,7 +1303,7 @@ export async function preloadUserData(): Promise<void> {
 
 /**
  * 获取跳过片头片尾配置。
- * 数据库存储模式下使用混合缓存策略：优先返回缓存数据，后台异步同步最新数据。
+ * 数据库存储模式下以服务端数据为准，本机缓存只在网络失败时兜底。
  */
 export async function getSkipConfig(
   source: string,
@@ -1414,45 +1316,15 @@ export async function getSkipConfig(
 
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：使用混合缓存策略（包括 redis 和 upstash）
   if (STORAGE_TYPE !== 'localstorage') {
-    // 优先从缓存获取数据
-    const cachedData = cacheManager.getCachedSkipConfigs();
-
-    if (cachedData) {
-      // 返回缓存数据，同时后台异步更新
-      fetchFromApi<Record<string, SkipConfig>>(`/api/skipconfigs`)
-        .then((freshData) => {
-          // 只有数据真正不同时才更新缓存
-          if (JSON.stringify(cachedData) !== JSON.stringify(freshData)) {
-            cacheManager.cacheSkipConfigs(freshData);
-            // 触发数据更新事件
-            window.dispatchEvent(
-              new CustomEvent('skipConfigsUpdated', {
-                detail: freshData,
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('后台同步跳过片头片尾配置失败:', err);
-        });
-
-      return cachedData[key] || null;
-    } else {
-      // 缓存为空，直接从 API 获取并缓存
-      try {
-        const freshData = await fetchFromApi<Record<string, SkipConfig>>(
-          `/api/skipconfigs`
-        );
-        cacheManager.cacheSkipConfigs(freshData);
-        return freshData[key] || null;
-      } catch (err) {
-        console.error('获取跳过片头片尾配置失败:', err);
-        triggerGlobalError('获取跳过片头片尾配置失败');
-        return null;
-      }
-    }
+    const configs = await fetchFreshPrivateData<Record<string, SkipConfig>>(
+      '/api/skipconfigs',
+      (freshData) => cacheManager.cacheSkipConfigs(freshData),
+      () => cacheManager.getCachedSkipConfigs(),
+      {},
+      '获取跳过片头片尾配置失败'
+    );
+    return configs[key] || null;
   }
 
   // localStorage 模式
@@ -1479,7 +1351,7 @@ export async function saveSkipConfig(
 ): Promise<void> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedConfigs = cacheManager.getCachedSkipConfigs() || {};
@@ -1534,7 +1406,7 @@ export async function saveSkipConfig(
 
 /**
  * 获取所有跳过片头片尾配置。
- * 数据库存储模式下使用混合缓存策略：优先返回缓存数据，后台异步同步最新数据。
+ * 数据库存储模式下以服务端数据为准，本机缓存只在网络失败时兜底。
  */
 export async function getAllSkipConfigs(): Promise<Record<string, SkipConfig>> {
   // 服务器端渲染阶段直接返回空
@@ -1542,46 +1414,14 @@ export async function getAllSkipConfigs(): Promise<Record<string, SkipConfig>> {
     return {};
   }
 
-  // 数据库存储模式：使用混合缓存策略（包括 redis 和 upstash）
   if (STORAGE_TYPE !== 'localstorage') {
-    // 优先从缓存获取数据
-    const cachedData = cacheManager.getCachedSkipConfigs();
-
-    if (cachedData) {
-      // 返回缓存数据，同时后台异步更新
-      fetchFromApi<Record<string, SkipConfig>>(`/api/skipconfigs`)
-        .then((freshData) => {
-          // 只有数据真正不同时才更新缓存
-          if (JSON.stringify(cachedData) !== JSON.stringify(freshData)) {
-            cacheManager.cacheSkipConfigs(freshData);
-            // 触发数据更新事件
-            window.dispatchEvent(
-              new CustomEvent('skipConfigsUpdated', {
-                detail: freshData,
-              })
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('后台同步跳过片头片尾配置失败:', err);
-          triggerGlobalError('后台同步跳过片头片尾配置失败');
-        });
-
-      return cachedData;
-    } else {
-      // 缓存为空，直接从 API 获取并缓存
-      try {
-        const freshData = await fetchFromApi<Record<string, SkipConfig>>(
-          `/api/skipconfigs`
-        );
-        cacheManager.cacheSkipConfigs(freshData);
-        return freshData;
-      } catch (err) {
-        console.error('获取跳过片头片尾配置失败:', err);
-        triggerGlobalError('获取跳过片头片尾配置失败');
-        return {};
-      }
-    }
+    return fetchFreshPrivateData<Record<string, SkipConfig>>(
+      '/api/skipconfigs',
+      (freshData) => cacheManager.cacheSkipConfigs(freshData),
+      () => cacheManager.getCachedSkipConfigs(),
+      {},
+      '获取跳过片头片尾配置失败'
+    );
   }
 
   // localStorage 模式
@@ -1606,7 +1446,7 @@ export async function deleteSkipConfig(
 ): Promise<void> {
   const key = generateStorageKey(source, id);
 
-  // 数据库存储模式：乐观更新策略（包括 redis 和 upstash）
+  // 数据库存储模式：乐观更新策略
   if (STORAGE_TYPE !== 'localstorage') {
     // 立即更新缓存
     const cachedConfigs = cacheManager.getCachedSkipConfigs() || {};

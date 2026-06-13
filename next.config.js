@@ -1,6 +1,37 @@
 /** @type {import('next').NextConfig} */
 /* eslint-disable @typescript-eslint/no-var-requires */
 
+const runtimeCaching = require('next-pwa/cache');
+
+const apiRuntimeCache = runtimeCaching.find(
+  (cache) => cache.options?.cacheName === 'apis'
+);
+
+if (apiRuntimeCache) {
+  apiRuntimeCache.urlPattern = ({ url }) => {
+    const isSameOrigin = self.origin === url.origin;
+    if (!isSameOrigin) return false;
+
+    const pathname = url.pathname;
+    if (!pathname.startsWith('/api/')) return false;
+    const privateApiPrefixes = [
+      '/api/admin/',
+      '/api/change-password',
+      '/api/favorites',
+      '/api/login',
+      '/api/logout',
+      '/api/playrecords',
+      '/api/searchhistory',
+      '/api/skipconfigs',
+    ];
+    if (privateApiPrefixes.some((prefix) => pathname.startsWith(prefix))) {
+      return false;
+    }
+
+    return true;
+  };
+}
+
 const nextConfig = {
   output: 'standalone',
   eslint: {
@@ -73,6 +104,7 @@ const withPWA = require('next-pwa')({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
   register: true,
+  runtimeCaching,
   skipWaiting: true,
 });
 

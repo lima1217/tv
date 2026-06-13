@@ -1,34 +1,18 @@
 /* eslint-disable no-console */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
-import { getAuthInfoFromCookie } from '@/lib/auth';
-import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
+import { privateJson, requireAuthenticatedUser } from '@/lib/private-route';
 import { SkipConfig } from '@/lib/types';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const authInfo = getAuthInfoFromCookie(request);
-    if (!authInfo || !authInfo.username) {
-      return NextResponse.json({ error: '未登录' }, { status: 401 });
-    }
-
-    const config = await getConfig();
-    if (authInfo.username !== process.env.USERNAME) {
-      // 非站长，检查用户存在或被封禁
-      const user = config.UserConfig.Users.find(
-        (u) => u.username === authInfo.username
-      );
-      if (!user) {
-        return NextResponse.json({ error: '用户不存在' }, { status: 401 });
-      }
-      if (user.banned) {
-        return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
-      }
-    }
+    const auth = await requireAuthenticatedUser(request, '未登录');
+    if (auth.response) return auth.response;
 
     const { searchParams } = new URL(request.url);
     const source = searchParams.get('source');
@@ -36,16 +20,16 @@ export async function GET(request: NextRequest) {
 
     if (source && id) {
       // 获取单个配置
-      const config = await db.getSkipConfig(authInfo.username, source, id);
-      return NextResponse.json(config);
+      const config = await db.getSkipConfig(auth.username, source, id);
+      return privateJson(config);
     } else {
       // 获取所有配置
-      const configs = await db.getAllSkipConfigs(authInfo.username);
-      return NextResponse.json(configs);
+      const configs = await db.getAllSkipConfigs(auth.username);
+      return privateJson(configs);
     }
   } catch (error) {
     console.error('获取跳过片头片尾配置失败:', error);
-    return NextResponse.json(
+    return privateJson(
       { error: '获取跳过片头片尾配置失败' },
       { status: 500 }
     );
@@ -54,36 +38,20 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authInfo = getAuthInfoFromCookie(request);
-    if (!authInfo || !authInfo.username) {
-      return NextResponse.json({ error: '未登录' }, { status: 401 });
-    }
-
-    const adminConfig = await getConfig();
-    if (authInfo.username !== process.env.USERNAME) {
-      // 非站长，检查用户存在或被封禁
-      const user = adminConfig.UserConfig.Users.find(
-        (u) => u.username === authInfo.username
-      );
-      if (!user) {
-        return NextResponse.json({ error: '用户不存在' }, { status: 401 });
-      }
-      if (user.banned) {
-        return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
-      }
-    }
+    const auth = await requireAuthenticatedUser(request, '未登录');
+    if (auth.response) return auth.response;
 
     const body = await request.json();
     const { key, config } = body;
 
     if (!key || !config) {
-      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+      return privateJson({ error: '缺少必要参数' }, { status: 400 });
     }
 
     // 解析key为source和id
     const [source, id] = key.split('+');
     if (!source || !id) {
-      return NextResponse.json({ error: '无效的key格式' }, { status: 400 });
+      return privateJson({ error: '无效的key格式' }, { status: 400 });
     }
 
     // 验证配置格式
@@ -93,12 +61,12 @@ export async function POST(request: NextRequest) {
       outro_time: Number(config.outro_time) || 0,
     };
 
-    await db.setSkipConfig(authInfo.username, source, id, skipConfig);
+    await db.setSkipConfig(auth.username, source, id, skipConfig);
 
-    return NextResponse.json({ success: true });
+    return privateJson({ success: true });
   } catch (error) {
     console.error('保存跳过片头片尾配置失败:', error);
-    return NextResponse.json(
+    return privateJson(
       { error: '保存跳过片头片尾配置失败' },
       { status: 500 }
     );
@@ -107,44 +75,28 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authInfo = getAuthInfoFromCookie(request);
-    if (!authInfo || !authInfo.username) {
-      return NextResponse.json({ error: '未登录' }, { status: 401 });
-    }
-
-    const adminConfig = await getConfig();
-    if (authInfo.username !== process.env.USERNAME) {
-      // 非站长，检查用户存在或被封禁
-      const user = adminConfig.UserConfig.Users.find(
-        (u) => u.username === authInfo.username
-      );
-      if (!user) {
-        return NextResponse.json({ error: '用户不存在' }, { status: 401 });
-      }
-      if (user.banned) {
-        return NextResponse.json({ error: '用户已被封禁' }, { status: 401 });
-      }
-    }
+    const auth = await requireAuthenticatedUser(request, '未登录');
+    if (auth.response) return auth.response;
 
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
 
     if (!key) {
-      return NextResponse.json({ error: '缺少必要参数' }, { status: 400 });
+      return privateJson({ error: '缺少必要参数' }, { status: 400 });
     }
 
     // 解析key为source和id
     const [source, id] = key.split('+');
     if (!source || !id) {
-      return NextResponse.json({ error: '无效的key格式' }, { status: 400 });
+      return privateJson({ error: '无效的key格式' }, { status: 400 });
     }
 
-    await db.deleteSkipConfig(authInfo.username, source, id);
+    await db.deleteSkipConfig(auth.username, source, id);
 
-    return NextResponse.json({ success: true });
+    return privateJson({ success: true });
   } catch (error) {
     console.error('删除跳过片头片尾配置失败:', error);
-    return NextResponse.json(
+    return privateJson(
       { error: '删除跳过片头片尾配置失败' },
       { status: 500 }
     );

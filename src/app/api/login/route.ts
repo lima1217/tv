@@ -3,17 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getConfig } from '@/lib/config';
 import { db } from '@/lib/db';
+import { getStorageType } from '@/lib/storage-type';
 
 export const runtime = 'nodejs';
 
-// 读取存储类型环境变量，默认 localstorage
-const STORAGE_TYPE =
-  (process.env.NEXT_PUBLIC_STORAGE_TYPE as
-    | 'localstorage'
-    | 'redis'
-    | 'upstash'
-    | 'kvrocks'
-    | undefined) || 'localstorage';
+const STORAGE_TYPE = getStorageType();
 
 // 生成签名
 async function generateSignature(
@@ -123,7 +117,7 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    // 数据库 / redis 模式——校验用户名并尝试连接数据库
+    // 数据库模式：校验用户名并尝试连接数据库
     const { username, password } = await req.json();
 
     if (!username || typeof username !== 'string') {
