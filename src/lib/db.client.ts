@@ -79,17 +79,22 @@ const CACHE_VERSION = '1.0.0';
 const CACHE_EXPIRE_TIME = 60 * 60 * 1000; // 一小时缓存过期
 
 // ---- 环境变量 ----
-const STORAGE_TYPE = (() => {
+function getClientStorageType(): 'localstorage' | 'upstash' {
   const raw =
     (typeof window !== 'undefined' &&
       (window as any).RUNTIME_CONFIG?.STORAGE_TYPE) ||
+    (process.env.NEXT_PUBLIC_STORAGE_TYPE as
+      | 'localstorage'
+      | 'upstash'
+      | undefined) ||
     (process.env.STORAGE_TYPE as
       | 'localstorage'
       | 'upstash'
       | undefined) ||
     'localstorage';
-  return raw;
-})();
+
+  return raw === 'upstash' ? 'upstash' : 'localstorage';
+}
 
 // ---------------- 搜索历史相关常量 ----------------
 // 搜索历史最大保存条数
@@ -525,7 +530,7 @@ export async function getAllPlayRecords(): Promise<Record<string, PlayRecord>> {
     return {};
   }
 
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     return fetchFreshPrivateData<Record<string, PlayRecord>>(
       '/api/playrecords',
       (freshData) => cacheManager.cachePlayRecords(freshData),
@@ -559,7 +564,7 @@ export async function savePlayRecord(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedRecords = cacheManager.getCachedPlayRecords() || {};
     cachedRecords[key] = record;
@@ -622,7 +627,7 @@ export async function deletePlayRecord(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedRecords = cacheManager.getCachedPlayRecords() || {};
     delete cachedRecords[key];
@@ -682,7 +687,7 @@ export async function getSearchHistory(): Promise<string[]> {
     return [];
   }
 
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     return fetchFreshPrivateData<string[]>(
       '/api/searchhistory',
       (freshData) => cacheManager.cacheSearchHistory(freshData),
@@ -715,7 +720,7 @@ export async function addSearchHistory(keyword: string): Promise<void> {
   if (!trimmed) return;
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedHistory = cacheManager.getCachedSearchHistory() || [];
     const newHistory = [trimmed, ...cachedHistory.filter((k) => k !== trimmed)];
@@ -775,7 +780,7 @@ export async function addSearchHistory(keyword: string): Promise<void> {
  */
 export async function clearSearchHistory(): Promise<void> {
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     cacheManager.cacheSearchHistory([]);
 
@@ -816,7 +821,7 @@ export async function deleteSearchHistory(keyword: string): Promise<void> {
   if (!trimmed) return;
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedHistory = cacheManager.getCachedSearchHistory() || [];
     const newHistory = cachedHistory.filter((k) => k !== trimmed);
@@ -874,7 +879,7 @@ export async function getAllFavorites(): Promise<Record<string, Favorite>> {
   }
 
   // 数据库存储模式：跨设备收藏必须以数据库为准
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     try {
       const freshData = await fetchFromApi<Record<string, Favorite>>(
         `/api/favorites`
@@ -912,7 +917,7 @@ export async function saveFavorite(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedFavorites = cacheManager.getCachedFavorites() || {};
     cachedFavorites[key] = favorite;
@@ -975,7 +980,7 @@ export async function deleteFavorite(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedFavorites = cacheManager.getCachedFavorites() || {};
     delete cachedFavorites[key];
@@ -1034,7 +1039,7 @@ export async function isFavorited(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：跨设备收藏状态必须以数据库为准
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     try {
       const freshData = await fetchFromApi<Record<string, Favorite>>(
         `/api/favorites`
@@ -1059,7 +1064,7 @@ export async function isFavorited(
  */
 export async function clearAllPlayRecords(): Promise<void> {
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     cacheManager.cachePlayRecords({});
 
@@ -1100,7 +1105,7 @@ export async function clearAllPlayRecords(): Promise<void> {
  */
 export async function clearAllFavorites(): Promise<void> {
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     cacheManager.cacheFavorites({});
 
@@ -1142,7 +1147,7 @@ export async function clearAllFavorites(): Promise<void> {
  * 用于用户登出时清理缓存
  */
 export function clearUserCache(): void {
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     cacheManager.clearUserCache();
   }
 }
@@ -1152,7 +1157,7 @@ export function clearUserCache(): void {
  * 强制从服务器重新获取数据并更新缓存
  */
 export async function refreshAllCache(): Promise<void> {
-  if (STORAGE_TYPE === 'localstorage') return;
+  if (getClientStorageType() === 'localstorage') return;
 
   try {
     // 并行刷新所有数据
@@ -1216,7 +1221,7 @@ export function getCacheStatus(): {
   hasSkipConfigs: boolean;
   username: string | null;
 } {
-  if (STORAGE_TYPE === 'localstorage') {
+  if (getClientStorageType() === 'localstorage') {
     return {
       hasPlayRecords: false,
       hasFavorites: false,
@@ -1279,7 +1284,7 @@ export function subscribeToDataUpdates<T>(
  * 适合在应用启动时调用，提升后续访问速度
  */
 export async function preloadUserData(): Promise<void> {
-  if (STORAGE_TYPE === 'localstorage') return;
+  if (getClientStorageType() === 'localstorage') return;
 
   // 检查是否已有有效缓存，避免重复请求
   const status = getCacheStatus();
@@ -1316,7 +1321,7 @@ export async function getSkipConfig(
 
   const key = generateStorageKey(source, id);
 
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     const configs = await fetchFreshPrivateData<Record<string, SkipConfig>>(
       '/api/skipconfigs',
       (freshData) => cacheManager.cacheSkipConfigs(freshData),
@@ -1352,7 +1357,7 @@ export async function saveSkipConfig(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedConfigs = cacheManager.getCachedSkipConfigs() || {};
     cachedConfigs[key] = config;
@@ -1414,7 +1419,7 @@ export async function getAllSkipConfigs(): Promise<Record<string, SkipConfig>> {
     return {};
   }
 
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     return fetchFreshPrivateData<Record<string, SkipConfig>>(
       '/api/skipconfigs',
       (freshData) => cacheManager.cacheSkipConfigs(freshData),
@@ -1447,7 +1452,7 @@ export async function deleteSkipConfig(
   const key = generateStorageKey(source, id);
 
   // 数据库存储模式：乐观更新策略
-  if (STORAGE_TYPE !== 'localstorage') {
+  if (getClientStorageType() !== 'localstorage') {
     // 立即更新缓存
     const cachedConfigs = cacheManager.getCachedSkipConfigs() || {};
     delete cachedConfigs[key];
