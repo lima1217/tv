@@ -2,8 +2,10 @@
 
 import { API_CONFIG, ApiSite, getConfig } from '@/lib/config';
 import { getCachedSearchPage, setCachedSearchPage } from '@/lib/search-cache';
+import { buildSearchQueries } from '@/lib/search-query';
 import { SearchResult } from '@/lib/types';
 import { cleanHtmlTags } from '@/lib/utils';
+import { normalizeVodText } from '@/lib/video-enrichment';
 
 interface ApiSearchItem {
   vod_id: string;
@@ -15,7 +17,26 @@ interface ApiSearchItem {
   vod_year?: string;
   vod_content?: string;
   vod_douban_id?: number;
+  vod_actor?: string;
+  vod_director?: string;
+  vod_area?: string;
+  vod_lang?: string;
+  vod_score?: string | number;
   type_name?: string;
+}
+
+function mapMetaFields(item: ApiSearchItem): Pick<
+  SearchResult,
+  'actors' | 'director' | 'area' | 'lang' | 'remarks' | 'score'
+> {
+  return {
+    actors: normalizeVodText(item.vod_actor),
+    director: normalizeVodText(item.vod_director),
+    area: normalizeVodText(item.vod_area),
+    lang: normalizeVodText(item.vod_lang),
+    remarks: normalizeVodText(item.vod_remarks),
+    score: normalizeVodText(item.vod_score),
+  };
 }
 
 /**
@@ -114,6 +135,7 @@ async function searchWithCache(
         desc: cleanHtmlTags(item.vod_content || ''),
         type_name: item.type_name,
         douban_id: item.vod_douban_id,
+        ...mapMetaFields(item),
       };
     });
 
@@ -135,60 +157,75 @@ async function searchWithCache(
   }
 }
 
+async function searchFromApiWithQuery(
+  apiSite: ApiSite,
+  query: string
+): Promise<SearchResult[]> {
+  const apiBaseUrl = apiSite.api;
+  const apiUrl =
+    apiBaseUrl + API_CONFIG.search.path + encodeURIComponent(query);
+
+  // 使用新的缓存搜索函数处理第一页
+  const firstPageResult = await searchWithCache(apiSite, query, 1, apiUrl, 8000);
+  const results = firstPageResult.results;
+  const pageCountFromFirst = firstPageResult.pageCount;
+
+  const config = await getConfig();
+  const MAX_SEARCH_PAGES: number = config.SiteConfig.SearchDownstreamMaxPage;
+
+  // 获取总页数
+  const pageCount = pageCountFromFirst || 1;
+  // 确定需要获取的额外页数
+  const pagesToFetch = Math.min(pageCount - 1, MAX_SEARCH_PAGES - 1);
+
+  // 如果有额外页数，获取更多页的结果
+  if (pagesToFetch > 0) {
+    const additionalPagePromises = [];
+
+    for (let page = 2; page <= pagesToFetch + 1; page++) {
+      const pageUrl =
+        apiBaseUrl +
+        API_CONFIG.search.pagePath
+          .replace('{query}', encodeURIComponent(query))
+          .replace('{page}', page.toString());
+
+      const pagePromise = (async () => {
+        // 使用新的缓存搜索函数处理分页
+        const pageResult = await searchWithCache(apiSite, query, page, pageUrl, 8000);
+        return pageResult.results;
+      })();
+
+      additionalPagePromises.push(pagePromise);
+    }
+
+    // 等待所有额外页的结果
+    const additionalResults = await Promise.all(additionalPagePromises);
+
+    // 合并所有页的结果
+    additionalResults.forEach((pageResults) => {
+      if (pageResults.length > 0) {
+        results.push(...pageResults);
+      }
+    });
+  }
+
+  return results;
+}
+
 export async function searchFromApi(
   apiSite: ApiSite,
   query: string
 ): Promise<SearchResult[]> {
   try {
-    const apiBaseUrl = apiSite.api;
-    const apiUrl =
-      apiBaseUrl + API_CONFIG.search.path + encodeURIComponent(query);
-
-    // 使用新的缓存搜索函数处理第一页
-    const firstPageResult = await searchWithCache(apiSite, query, 1, apiUrl, 8000);
-    const results = firstPageResult.results;
-    const pageCountFromFirst = firstPageResult.pageCount;
-
-    const config = await getConfig();
-    const MAX_SEARCH_PAGES: number = config.SiteConfig.SearchDownstreamMaxPage;
-
-    // 获取总页数
-    const pageCount = pageCountFromFirst || 1;
-    // 确定需要获取的额外页数
-    const pagesToFetch = Math.min(pageCount - 1, MAX_SEARCH_PAGES - 1);
-
-    // 如果有额外页数，获取更多页的结果
-    if (pagesToFetch > 0) {
-      const additionalPagePromises = [];
-
-      for (let page = 2; page <= pagesToFetch + 1; page++) {
-        const pageUrl =
-          apiBaseUrl +
-          API_CONFIG.search.pagePath
-            .replace('{query}', encodeURIComponent(query))
-            .replace('{page}', page.toString());
-
-        const pagePromise = (async () => {
-          // 使用新的缓存搜索函数处理分页
-          const pageResult = await searchWithCache(apiSite, query, page, pageUrl, 8000);
-          return pageResult.results;
-        })();
-
-        additionalPagePromises.push(pagePromise);
+    // 原词优先；空结果时回退到清洗后的核心词（去掉季数/语种/标点等噪声）
+    const queries = buildSearchQueries(query);
+    for (const q of queries) {
+      const results = await searchFromApiWithQuery(apiSite, q);
+      if (results.length > 0) {
+        return results;
       }
-
-      // 等待所有额外页的结果
-      const additionalResults = await Promise.all(additionalPagePromises);
-
-      // 合并所有页的结果
-      additionalResults.forEach((pageResults) => {
-        if (pageResults.length > 0) {
-          results.push(...pageResults);
-        }
-      });
     }
-
-    return results;
+    return [];
   } catch (error) {
     return [];
   }
@@ -283,6 +320,7 @@ export async function getDetailFromApi(
     desc: cleanHtmlTags(videoDetail.vod_content),
     type_name: videoDetail.type_name,
     douban_id: videoDetail.vod_douban_id,
+    ...mapMetaFields(videoDetail as ApiSearchItem),
   };
 }
 

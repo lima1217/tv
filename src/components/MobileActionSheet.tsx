@@ -174,7 +174,7 @@ const MobileActionSheet: React.FC<MobileActionSheetProps> = ({
     >
       {/* 背景遮罩 */}
       <div
-        className={`absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out ${isAnimating ? 'opacity-100' : 'opacity-0'
+        className={`absolute inset-0 bg-black/50 transition-opacity duration-200 ease-out motion-reduce:transition-none ${isAnimating ? 'opacity-100' : 'opacity-0'
           }`}
         onClick={onClose}
         onTouchMove={(e) => {
@@ -194,7 +194,7 @@ const MobileActionSheet: React.FC<MobileActionSheetProps> = ({
 
       {/* 操作表单 */}
       <div
-        className="relative w-full max-w-lg mx-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl transition-all duration-200 ease-out"
+        className="relative w-full max-w-lg mx-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 ease-out motion-reduce:transition-none overscroll-contain"
         onTouchMove={(e) => {
           // 允许操作表单内部滚动，阻止事件冒泡到外层
           e.stopPropagation();
@@ -245,10 +245,12 @@ const MobileActionSheet: React.FC<MobileActionSheetProps> = ({
           </div>
 
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150"
+            aria-label="关闭"
+            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
           >
-            <X size={20} className="text-gray-500 dark:text-gray-400" />
+            <X size={20} className="text-gray-500 dark:text-gray-400" aria-hidden />
           </button>
         </div>
 
@@ -263,7 +265,7 @@ const MobileActionSheet: React.FC<MobileActionSheetProps> = ({
                 }}
                 disabled={action.disabled}
                 className={`
-                  w-full flex items-center gap-4 py-4 px-2 transition-all duration-150 ease-out
+                  w-full flex items-center gap-4 py-4 px-2 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-150 ease-out
                   ${action.disabled
                     ? 'opacity-50 cursor-not-allowed'
                     : `${getActionHoverColor(action.color)} active:scale-[0.98]`
@@ -324,7 +326,7 @@ const MobileActionSheet: React.FC<MobileActionSheetProps> = ({
             </div>
 
             {/* 播放源列表 */}
-            <div className="max-h-32 overflow-y-auto">
+            <div className="max-h-32 overflow-y-auto overscroll-contain">
               <div className="grid grid-cols-2 gap-2">
                 {sources.map((source, index) => (
                   <div

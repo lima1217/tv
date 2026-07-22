@@ -97,12 +97,13 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang='zh-CN' suppressHydrationWarning>
+    <html lang='zh-CN' suppressHydrationWarning className='scheme-light dark:scheme-dark'>
       <head>
         <meta
           name='viewport'
           content='width=device-width, initial-scale=1.0, viewport-fit=cover'
         />
+        <meta name='color-scheme' content='light dark' />
         <link rel='apple-touch-icon' href='/icons/icon-192x192.png' />
         <script
           id='esbuild-name-shim'
@@ -122,6 +123,12 @@ export default async function RootLayout({
       <body
         className={`${inter.className} min-h-screen bg-white text-gray-900 dark:bg-black dark:text-gray-200`}
       >
+        <a
+          href='#main-content'
+          className='sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-900 focus:shadow-lg dark:focus:bg-gray-900 dark:focus:text-gray-100'
+        >
+          跳到主要内容
+        </a>
         <ThemeProvider
           attribute='class'
           defaultTheme='system'

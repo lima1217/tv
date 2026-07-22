@@ -22,7 +22,12 @@ import {
   subscribeToDataUpdates,
 } from '@/lib/db.client';
 import { SearchResult } from '@/lib/types';
+import { titlesLooselyMatch } from '@/lib/search-query';
 import { getVideoResolutionFromM3u8, processImageUrl } from '@/lib/utils';
+import {
+  DoubanSubjectEnrichment,
+  mergeVideoEnrichment,
+} from '@/lib/video-enrichment';
 
 import EpisodeSelector from '@/components/EpisodeSelector';
 import PageLayout from '@/components/PageLayout';
@@ -53,7 +58,7 @@ function PlayPageClient() {
   const [loadingStage, setLoadingStage] = useState<
     'searching' | 'preferring' | 'fetching' | 'ready'
   >('searching');
-  const [loadingMessage, setLoadingMessage] = useState('正在搜索播放源...');
+  const [loadingMessage, setLoadingMessage] = useState('正在搜索播放源…');
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<SearchResult | null>(null);
 
@@ -101,6 +106,9 @@ function PlayPageClient() {
   const [videoYear, setVideoYear] = useState(searchParams.get('year') || '');
   const [videoCover, setVideoCover] = useState('');
   const [videoDoubanId, setVideoDoubanId] = useState(0);
+  // 豆瓣 enrichment：done=已成功；inFlight=请求进行中（防并发/StrictMode 误跳过）
+  const doubanEnrichDoneRef = useRef('');
+  const doubanEnrichInFlightRef = useRef('');
   // 当前源和ID
   const [currentSource, setCurrentSource] = useState(
     searchParams.get('source') || ''
@@ -305,7 +313,7 @@ function PlayPageClient() {
     const validSpeeds = successfulResults
       .map((result) => {
         const speedStr = result.testResult.loadSpeed;
-        if (speedStr === '未知' || speedStr === '测量中...') return 0;
+        if (speedStr === '未知' || speedStr === '测量中…') return 0;
 
         const match = speedStr.match(/^([\d.]+)\s*(KB\/s|MB\/s)$/);
         if (!match) return 0;
@@ -389,7 +397,7 @@ function PlayPageClient() {
     // 下载速度评分 (40% 权重) - 基于最大速度线性映射
     const speedScore = (() => {
       const speedStr = testResult.loadSpeed;
-      if (speedStr === '未知' || speedStr === '测量中...') return 30;
+      if (speedStr === '未知' || speedStr === '测量中…') return 30;
 
       // 解析速度值
       const match = speedStr.match(/^([\d.]+)\s*(KB\/s|MB\/s)$/);
@@ -699,11 +707,10 @@ function PlayPageClient() {
         }
         const data = await response.json();
 
-        // 处理搜索结果，根据规则过滤
+        // 处理搜索结果：宽松标题匹配（允许源站标题带语种/季数等后缀），再按年份与类型收窄
         const results = data.results.filter(
           (result: SearchResult) =>
-            result.title.replaceAll(' ', '').toLowerCase() ===
-            videoTitleRef.current.replaceAll(' ', '').toLowerCase() &&
+            titlesLooselyMatch(result.title, videoTitleRef.current) &&
             (videoYearRef.current
               ? result.year.toLowerCase() === videoYearRef.current.toLowerCase()
               : true) &&
@@ -730,6 +737,10 @@ function PlayPageClient() {
 
       console.log(detailData.source, detailData.id);
 
+      // 换源/换片后允许重新 enrichment
+      doubanEnrichDoneRef.current = '';
+      doubanEnrichInFlightRef.current = '';
+
       setNeedPrefer(false);
       setCurrentSource(detailData.source);
       setCurrentId(detailData.id);
@@ -753,7 +764,7 @@ function PlayPageClient() {
       window.history.replaceState({}, '', newUrl.toString());
 
       setLoadingStage('ready');
-      setLoadingMessage('✨ 准备就绪，即将开始播放...');
+      setLoadingMessage('✨ 准备就绪，即将开始播放…');
       setTimeout(() => {
         if (!cancelled) setLoading(false);
       }, 250);
@@ -791,8 +802,8 @@ function PlayPageClient() {
       setLoadingStage(currentSource && currentId ? 'fetching' : 'searching');
       setLoadingMessage(
         currentSource && currentId
-          ? '🎬 正在获取视频详情...'
-          : '🔍 正在搜索播放源...'
+          ? '🎬 正在获取视频详情…'
+          : '🔍 正在搜索播放源…'
       );
 
       let sourcesInfo: SearchResult[] = [];
@@ -858,6 +869,72 @@ function PlayPageClient() {
       cancelled = true;
     };
   }, []);
+
+  // 有豆瓣 id 时异步补全评分/演职员/简介（失败静默降级）
+  useEffect(() => {
+    if (!videoDoubanId || videoDoubanId === 0) return;
+    if (!currentSource || !currentId) return;
+    if (!detailRef.current) return;
+
+    const key = `${currentSource}|${currentId}|${videoDoubanId}`;
+    if (
+      doubanEnrichDoneRef.current === key ||
+      doubanEnrichInFlightRef.current === key
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    doubanEnrichInFlightRef.current = key;
+
+    const enrich = async () => {
+      try {
+        const res = await fetch(`/api/douban/subject?id=${videoDoubanId}`);
+        if (cancelled) return;
+        if (!res.ok) return;
+
+        const data = (await res.json()) as DoubanSubjectEnrichment & {
+          code?: number;
+          message?: string;
+        };
+        if (cancelled || data.code !== 200) return;
+
+        doubanEnrichDoneRef.current = key;
+        setDetail((prev) => {
+          if (
+            !prev ||
+            prev.source !== currentSource ||
+            prev.id !== currentId
+          ) {
+            return prev;
+          }
+          return mergeVideoEnrichment(prev, {
+            rate: data.rate || '',
+            directors: data.directors || '',
+            actors: data.actors || '',
+            genres: data.genres || '',
+            area: data.area || '',
+            year: data.year || '',
+            desc: data.desc || '',
+          });
+        });
+      } catch (err) {
+        console.warn('豆瓣详情补全失败:', err);
+      } finally {
+        if (doubanEnrichInFlightRef.current === key) {
+          doubanEnrichInFlightRef.current = '';
+        }
+      }
+    };
+
+    enrich();
+    return () => {
+      cancelled = true;
+      if (doubanEnrichInFlightRef.current === key) {
+        doubanEnrichInFlightRef.current = '';
+      }
+    };
+  }, [videoDoubanId, currentSource, currentId]);
 
   // 播放记录处理
   useEffect(() => {
@@ -987,6 +1064,8 @@ function PlayPageClient() {
       setVideoYear(newDetail.year);
       setVideoCover(newDetail.poster);
       setVideoDoubanId(newDetail.douban_id || 0);
+      doubanEnrichDoneRef.current = '';
+      doubanEnrichInFlightRef.current = '';
       setCurrentSource(newSource);
       setCurrentId(newId);
       setDetail(newDetail);
@@ -1419,11 +1498,11 @@ function PlayPageClient() {
               if (data.fatal) {
                 switch (data.type) {
                   case Hls.ErrorTypes.NETWORK_ERROR:
-                    console.log('网络错误，尝试恢复...');
+                    console.log('网络错误，尝试恢复…');
                     hls.startLoad();
                     break;
                   case Hls.ErrorTypes.MEDIA_ERROR:
-                    console.log('媒体错误，尝试恢复...');
+                    console.log('媒体错误，尝试恢复…');
                     hls.recoverMediaError();
                     break;
                   default:
@@ -1766,7 +1845,7 @@ function PlayPageClient() {
             <div className='mb-6 w-80 mx-auto'>
               <div className='flex justify-center space-x-2 mb-4'>
                 <div
-                  className={`w-3 h-3 rounded-full transition-all duration-500 ${loadingStage === 'searching' || loadingStage === 'fetching'
+                  className={`w-3 h-3 rounded-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-500 ${loadingStage === 'searching' || loadingStage === 'fetching'
                     ? 'bg-green-500 scale-125'
                     : loadingStage === 'preferring' ||
                       loadingStage === 'ready'
@@ -1775,7 +1854,7 @@ function PlayPageClient() {
                     }`}
                 ></div>
                 <div
-                  className={`w-3 h-3 rounded-full transition-all duration-500 ${loadingStage === 'preferring'
+                  className={`w-3 h-3 rounded-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-500 ${loadingStage === 'preferring'
                     ? 'bg-green-500 scale-125'
                     : loadingStage === 'ready'
                       ? 'bg-green-500'
@@ -1783,7 +1862,7 @@ function PlayPageClient() {
                     }`}
                 ></div>
                 <div
-                  className={`w-3 h-3 rounded-full transition-all duration-500 ${loadingStage === 'ready'
+                  className={`w-3 h-3 rounded-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-500 ${loadingStage === 'ready'
                     ? 'bg-green-500 scale-125'
                     : 'bg-gray-300'
                     }`}
@@ -1793,7 +1872,7 @@ function PlayPageClient() {
               {/* 进度条 */}
               <div className='w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden'>
                 <div
-                  className='h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-1000 ease-out'
+                  className='h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-1000 ease-out'
                   style={{
                     width:
                       loadingStage === 'searching' ||
@@ -1864,19 +1943,21 @@ function PlayPageClient() {
             {/* 操作按钮 */}
             <div className='space-y-3'>
               <button
+                type='button'
                 onClick={() =>
                   videoTitle
                     ? router.push(`/search?q=${encodeURIComponent(videoTitle)}`)
                     : router.back()
                 }
-                className='w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl'
+                className='w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transform hover:scale-105 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 shadow-lg hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500'
               >
                 {videoTitle ? '🔍 返回搜索' : '← 返回上页'}
               </button>
 
               <button
+                type='button'
                 onClick={() => window.location.reload()}
-                className='w-full px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200'
+                className='w-full px-6 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500'
               >
                 🔄 重新尝试
               </button>
@@ -1934,7 +2015,7 @@ function PlayPageClient() {
                     sourceSuggestion.title
                   )
                 }
-                className='rounded-full bg-blue-600 px-3 py-1 font-medium text-white transition-colors hover:bg-blue-700'
+                className='rounded-full bg-blue-600 px-3 py-1 font-medium text-white transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500'
               >
                 推荐更快源 {sourceSuggestion.source_name}
               </button>
@@ -1946,10 +2027,14 @@ function PlayPageClient() {
           {/* 折叠控制 - 仅在 lg 及以上屏幕显示 */}
           <div className='hidden lg:flex justify-end'>
             <button
+              type='button'
               onClick={() =>
                 setIsEpisodeSelectorCollapsed(!isEpisodeSelectorCollapsed)
               }
-              className='group relative flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-sm hover:shadow-md transition-all duration-200'
+              aria-label={
+                isEpisodeSelectorCollapsed ? '显示选集面板' : '隐藏选集面板'
+              }
+              className='group relative flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white/80 hover:bg-white dark:bg-gray-800/80 dark:hover:bg-gray-800 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-sm hover:shadow-md transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500'
               title={
                 isEpisodeSelectorCollapsed ? '显示选集面板' : '隐藏选集面板'
               }
@@ -1960,6 +2045,7 @@ function PlayPageClient() {
                 fill='none'
                 stroke='currentColor'
                 viewBox='0 0 24 24'
+                aria-hidden='true'
               >
                 <path
                   strokeLinecap='round'
@@ -1974,7 +2060,7 @@ function PlayPageClient() {
 
               {/* 精致的状态指示点 */}
               <div
-                className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full transition-all duration-200 ${isEpisodeSelectorCollapsed
+                className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 ${isEpisodeSelectorCollapsed
                   ? 'bg-orange-400 animate-pulse'
                   : 'bg-green-400'
                   }`}
@@ -1983,14 +2069,14 @@ function PlayPageClient() {
           </div>
 
           <div
-            className={`grid gap-4 lg:h-[500px] xl:h-[650px] 2xl:h-[750px] transition-all duration-300 ease-in-out ${isEpisodeSelectorCollapsed
+            className={`grid gap-4 lg:h-[500px] xl:h-[650px] 2xl:h-[750px] transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-300 ease-in-out ${isEpisodeSelectorCollapsed
               ? 'grid-cols-1'
               : 'grid-cols-1 md:grid-cols-4'
               }`}
           >
             {/* 播放器 */}
             <div
-              className={`h-full transition-all duration-300 ease-in-out rounded-xl border border-white/0 dark:border-white/30 ${isEpisodeSelectorCollapsed ? 'col-span-1' : 'md:col-span-3'
+              className={`h-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-300 ease-in-out rounded-xl border border-white/0 dark:border-white/30 ${isEpisodeSelectorCollapsed ? 'col-span-1' : 'md:col-span-3'
                 }`}
             >
               <div className='relative w-full h-[300px] lg:h-full'>
@@ -2001,7 +2087,7 @@ function PlayPageClient() {
 
                 {/* 换源加载蒙层 */}
                 {isVideoLoading && (
-                  <div className='absolute inset-0 bg-black/85 backdrop-blur-sm rounded-xl flex items-center justify-center z-[500] transition-all duration-300'>
+                  <div className='absolute inset-0 bg-black/85 backdrop-blur-sm rounded-xl flex items-center justify-center z-[500] transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-300'>
                     <div className='text-center max-w-md mx-auto px-6'>
                       {/* 动画影院图标 */}
                       <div className='relative mb-8'>
@@ -2029,8 +2115,8 @@ function PlayPageClient() {
                       <div className='space-y-2'>
                         <p className='text-xl font-semibold text-white animate-pulse'>
                           {videoLoadingStage === 'sourceChanging'
-                            ? '🔄 切换播放源...'
-                            : '🔄 视频加载中...'}
+                            ? '🔄 切换播放源…'
+                            : '🔄 视频加载中…'}
                         </p>
                       </div>
                     </div>
@@ -2041,7 +2127,7 @@ function PlayPageClient() {
 
             {/* 选集和换源 - 在移动端始终显示，在 lg 及以上可折叠 */}
             <div
-              className={`h-[300px] lg:h-full md:overflow-hidden transition-all duration-300 ease-in-out ${isEpisodeSelectorCollapsed
+              className={`h-[300px] lg:h-full md:overflow-hidden transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-300 ease-in-out ${isEpisodeSelectorCollapsed
                 ? 'md:col-span-1 lg:hidden lg:opacity-0 lg:scale-95'
                 : 'md:col-span-1 lg:opacity-100 lg:scale-100'
                 }`}
@@ -2073,11 +2159,13 @@ function PlayPageClient() {
               <h1 className='text-3xl font-bold mb-2 tracking-wide flex items-center flex-shrink-0 text-center md:text-left w-full'>
                 {videoTitle || '影片标题'}
                 <button
+                  type='button'
+                  aria-label={favorited ? '取消收藏' : '收藏'}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleToggleFavorite();
                   }}
-                  className='ml-3 flex-shrink-0 hover:opacity-80 transition-opacity'
+                  className='ml-3 flex-shrink-0 hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded'
                 >
                   <FavoriteIcon filled={favorited} />
                 </button>
@@ -2085,6 +2173,11 @@ function PlayPageClient() {
 
               {/* 关键信息行 */}
               <div className='flex flex-wrap items-center gap-3 text-base mb-4 opacity-80 flex-shrink-0'>
+                {detail?.score && (
+                  <span className='text-yellow-600 dark:text-yellow-400 font-semibold tabular-nums'>
+                    {detail.score}
+                  </span>
+                )}
                 {detail?.class && (
                   <span className='text-green-600 font-semibold'>
                     {detail.class}
@@ -2093,6 +2186,7 @@ function PlayPageClient() {
                 {(detail?.year || videoYear) && (
                   <span>{detail?.year || videoYear}</span>
                 )}
+                {detail?.area && <span>{detail.area}</span>}
                 {detail?.source_name && (
                   <span className='border border-gray-500/60 px-2 py-[1px] rounded'>
                     {detail.source_name}
@@ -2100,6 +2194,22 @@ function PlayPageClient() {
                 )}
                 {detail?.type_name && <span>{detail.type_name}</span>}
               </div>
+              {(detail?.director || detail?.actors) && (
+                <div className='mb-3 text-sm leading-relaxed opacity-80 flex-shrink-0 space-y-1'>
+                  {detail.director && (
+                    <div className='line-clamp-2'>
+                      <span className='opacity-60'>导演 </span>
+                      {detail.director}
+                    </div>
+                  )}
+                  {detail.actors && (
+                    <div className='line-clamp-2'>
+                      <span className='opacity-60'>主演 </span>
+                      {detail.actors}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* 剧情简介 */}
               {detail?.desc && (
                 <div
@@ -2121,6 +2231,8 @@ function PlayPageClient() {
                     <img
                       src={processImageUrl(videoCover)}
                       alt={videoTitle}
+                      width={400}
+                      height={600}
                       className='w-full h-full object-cover'
                     />
 
@@ -2130,9 +2242,10 @@ function PlayPageClient() {
                         href={`https://movie.douban.com/subject/${videoDoubanId.toString()}`}
                         target='_blank'
                         rel='noopener noreferrer'
-                        className='absolute top-3 left-3'
+                        className='absolute top-3 left-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 rounded-full'
+                        aria-label='在豆瓣查看'
                       >
-                        <div className='bg-green-500 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shadow-md hover:bg-green-600 hover:scale-[1.1] transition-all duration-300 ease-out'>
+                        <div className='bg-green-500 text-white text-xs font-bold w-8 h-8 rounded-full flex items-center justify-center shadow-md hover:bg-green-600 hover:scale-[1.1] transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-300 ease-out'>
                           <svg
                             width='16'
                             height='16'
@@ -2142,6 +2255,7 @@ function PlayPageClient() {
                             strokeWidth='2'
                             strokeLinecap='round'
                             strokeLinejoin='round'
+                            aria-hidden='true'
                           >
                             <path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'></path>
                             <path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'></path>
@@ -2191,7 +2305,7 @@ const FavoriteIcon = ({ filled }: { filled: boolean }) => {
 
 export default function PlayPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>Loading…</div>}>
       <PlayPageClient />
     </Suspense>
   );

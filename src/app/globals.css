@@ -32,42 +32,22 @@ body {
 html:not(.dark) body {
   background: linear-gradient(
     180deg,
-    #e6f3fb 0%,
-    #eaf3f7 18%,
-    #f7f7f3 38%,
-    #e9ecef 60%,
-    #dbe3ea 80%,
-    #d3dde6 100%
+    #eef4f8 0%,
+    #f5f6f4 45%,
+    #e8eef3 100%
   );
   background-attachment: fixed;
 }
 
-/* 自定义滚动条样式 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(31, 41, 55, 0.1);
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(75, 85, 99, 0.3);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(107, 114, 128, 0.5);
-}
-
 /* 视频卡片悬停效果 */
 .video-card-hover {
-  transition: transform 0.3s ease;
+  transition-property: transform;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
 
 .video-card-hover:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
 
 /* 渐变遮罩 */
@@ -145,6 +125,31 @@ html.dark::view-transition-new(root) {
 /* 从深色到浅色：新内容（浅色）从底部滑入 */
 html:not(.dark)::view-transition-new(root) {
   animation-name: slide-from-bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+
+  html.dark::view-transition-new(root),
+  html:not(.dark)::view-transition-new(root) {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html {
+  color-scheme: light dark;
 }
 
 /* 强制播放器内部的 video 元素高度为 100%，并保持内容完整显示 */

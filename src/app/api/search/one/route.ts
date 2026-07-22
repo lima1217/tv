@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
+import { titlesLooselyMatch } from '@/lib/search-query';
 import { yellowWords } from '@/lib/yellow';
 
 export const runtime = 'nodejs';
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await searchFromApi(targetSite, query);
-    let result = results.filter((r) => r.title === query);
+    let result = results.filter((r) => titlesLooselyMatch(r.title, query));
     if (!config.SiteConfig.DisableYellowFilter) {
       result = result.filter((result) => {
         const typeName = result.type_name || '';

@@ -154,7 +154,7 @@ const AlertModal = ({
 
   return createPortal(
     <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full border ${getBgColor()} transition-all duration-200 ${isVisible ? 'scale-100' : 'scale-95'}`}>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full border ${getBgColor()} transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 ${isVisible ? 'scale-100' : 'scale-95'}`}>
         <div className="p-6 text-center">
           <div className="flex justify-center mb-4">
             {getIcon()}
@@ -772,7 +772,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
-        加载中...
+        加载中…
       </div>
     );
   }
@@ -923,6 +923,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 <input
                   type='text'
                   placeholder='用户名'
+                  aria-label='用户名'
                   value={newUser.username}
                   onChange={(e) =>
                     setNewUser((prev) => ({ ...prev, username: e.target.value }))
@@ -932,6 +933,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 <input
                   type='password'
                   placeholder='密码'
+                  aria-label='密码'
                   value={newUser.password}
                   onChange={(e) =>
                     setNewUser((prev) => ({ ...prev, password: e.target.value }))
@@ -964,7 +966,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   disabled={!newUser.username || !newUser.password || isLoading('addUser')}
                   className={!newUser.username || !newUser.password || isLoading('addUser') ? buttonStyles.disabled : buttonStyles.success}
                 >
-                  {isLoading('addUser') ? '添加中...' : '添加'}
+                  {isLoading('addUser') ? '添加中…' : '添加'}
                 </button>
               </div>
             </div>
@@ -988,6 +990,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
               <input
                 type='password'
                 placeholder='新密码'
+                aria-label='新密码'
                 value={changePasswordUser.password}
                 onChange={(e) =>
                   setChangePasswordUser((prev) => ({
@@ -1002,7 +1005,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                 disabled={!changePasswordUser.password || isLoading(`changePassword_${changePasswordUser.username}`)}
                 className={`w-full sm:w-auto ${!changePasswordUser.password || isLoading(`changePassword_${changePasswordUser.username}`) ? buttonStyles.disabled : buttonStyles.primary}`}
               >
-                {isLoading(`changePassword_${changePasswordUser.username}`) ? '修改中...' : '修改密码'}
+                {isLoading(`changePassword_${changePasswordUser.username}`) ? '修改中…' : '修改密码'}
               </button>
               <button
                 onClick={() => {
@@ -1293,7 +1296,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           setSelectedUser(null);
           setSelectedApis([]);
         }}>
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto' onClick={(e) => e.stopPropagation()}>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto overscroll-contain' onClick={(e) => e.stopPropagation()}>
             <div className='p-6'>
               <div className='flex items-center justify-between mb-6'>
                 <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
@@ -1305,6 +1308,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setSelectedUser(null);
                     setSelectedApis([]);
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1407,7 +1411,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   disabled={isLoading(`saveUserApis_${selectedUser?.username}`)}
                   className={`px-6 py-2.5 text-sm font-medium ${isLoading(`saveUserApis_${selectedUser?.username}`) ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  {isLoading(`saveUserApis_${selectedUser?.username}`) ? '配置中...' : '确认配置'}
+                  {isLoading(`saveUserApis_${selectedUser?.username}`) ? '配置中…' : '确认配置'}
                 </button>
               </div>
             </div>
@@ -1422,7 +1426,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           setShowAddUserGroupForm(false);
           setNewUserGroup({ name: '', enabledApis: [] });
         }}>
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto' onClick={(e) => e.stopPropagation()}>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto overscroll-contain' onClick={(e) => e.stopPropagation()}>
             <div className='p-6'>
               <div className='flex items-center justify-between mb-6'>
                 <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
@@ -1433,6 +1437,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowAddUserGroupForm(false);
                     setNewUserGroup({ name: '', enabledApis: [] });
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1534,7 +1539,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     disabled={!newUserGroup.name.trim() || isLoading('userGroup_add_new')}
                     className={`px-6 py-2.5 text-sm font-medium ${!newUserGroup.name.trim() || isLoading('userGroup_add_new') ? buttonStyles.disabled : buttonStyles.primary}`}
                   >
-                    {isLoading('userGroup_add_new') ? '添加中...' : '添加用户组'}
+                    {isLoading('userGroup_add_new') ? '添加中…' : '添加用户组'}
                   </button>
                 </div>
               </div>
@@ -1550,7 +1555,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           setShowEditUserGroupForm(false);
           setEditingUserGroup(null);
         }}>
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto' onClick={(e) => e.stopPropagation()}>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto overscroll-contain' onClick={(e) => e.stopPropagation()}>
             <div className='p-6'>
               <div className='flex items-center justify-between mb-6'>
                 <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
@@ -1561,6 +1566,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowEditUserGroupForm(false);
                     setEditingUserGroup(null);
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1646,7 +1652,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     disabled={isLoading(`userGroup_edit_${editingUserGroup?.name}`)}
                     className={`px-6 py-2.5 text-sm font-medium ${isLoading(`userGroup_edit_${editingUserGroup?.name}`) ? buttonStyles.disabled : buttonStyles.primary}`}
                   >
-                    {isLoading(`userGroup_edit_${editingUserGroup?.name}`) ? '保存中...' : '保存修改'}
+                    {isLoading(`userGroup_edit_${editingUserGroup?.name}`) ? '保存中…' : '保存修改'}
                   </button>
                 </div>
               </div>
@@ -1663,7 +1669,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
           setSelectedUserForGroup(null);
           setSelectedUserGroups([]);
         }}>
-          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto' onClick={(e) => e.stopPropagation()}>
+          <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto overscroll-contain' onClick={(e) => e.stopPropagation()}>
             <div className='p-6'>
               <div className='flex items-center justify-between mb-6'>
                 <h3 className='text-xl font-semibold text-gray-900 dark:text-gray-100'>
@@ -1675,6 +1681,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setSelectedUserForGroup(null);
                     setSelectedUserGroups([]);
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1743,7 +1750,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   disabled={isLoading(`saveUserGroups_${selectedUserForGroup?.username}`)}
                   className={`px-6 py-2.5 text-sm font-medium ${isLoading(`saveUserGroups_${selectedUserForGroup?.username}`) ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  {isLoading(`saveUserGroups_${selectedUserForGroup?.username}`) ? '配置中...' : '确认配置'}
+                  {isLoading(`saveUserGroups_${selectedUserForGroup?.username}`) ? '配置中…' : '确认配置'}
                 </button>
               </div>
             </div>
@@ -1769,6 +1776,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowDeleteUserGroupModal(false);
                     setDeletingUserGroup(null);
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1843,7 +1851,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   disabled={isLoading(`userGroup_delete_${deletingUserGroup?.name}`)}
                   className={`px-6 py-2.5 text-sm font-medium ${isLoading(`userGroup_delete_${deletingUserGroup?.name}`) ? buttonStyles.disabled : buttonStyles.danger}`}
                 >
-                  {isLoading(`userGroup_delete_${deletingUserGroup?.name}`) ? '删除中...' : '确认删除'}
+                  {isLoading(`userGroup_delete_${deletingUserGroup?.name}`) ? '删除中…' : '确认删除'}
                 </button>
               </div>
             </div>
@@ -1869,6 +1877,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowDeleteUserModal(false);
                     setDeletingUser(null);
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1934,6 +1943,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                     setShowBatchUserGroupModal(false);
                     setSelectedUserGroup('');
                   }}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -1995,7 +2005,7 @@ const UserConfig = ({ config, role, refreshConfig }: UserConfigProps) => {
                   disabled={isLoading('batchSetUserGroup')}
                   className={`px-6 py-2.5 text-sm font-medium ${isLoading('batchSetUserGroup') ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  {isLoading('batchSetUserGroup') ? '设置中...' : '确认设置'}
+                  {isLoading('batchSetUserGroup') ? '设置中…' : '确认设置'}
                 </button>
               </div>
             </div>
@@ -2135,6 +2145,7 @@ const VideoSourceConfig = ({
   };
 
   const handleDelete = (key: string) => {
+    if (!window.confirm('确定删除此视频源？此操作不可撤销。')) return;
     withLoading(`deleteSource_${key}`, () => callSourceApi({ action: 'delete', key })).catch(() => {
       console.error('操作失败', 'delete', key);
     });
@@ -2201,7 +2212,7 @@ const VideoSourceConfig = ({
         key: source.key,
         name: source.name,
         status: 'validating' as const,
-        message: '检测中...',
+        message: '检测中…',
         resultCount: 0
       }));
       setValidationResults(initialResults);
@@ -2496,7 +2507,7 @@ const VideoSourceConfig = ({
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
-        加载中...
+        加载中…
       </div>
     );
   }
@@ -2522,21 +2533,21 @@ const VideoSourceConfig = ({
                   disabled={isLoading('batchSource_batch_enable')}
                   className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_enable') ? buttonStyles.disabled : buttonStyles.success}`}
                 >
-                  {isLoading('batchSource_batch_enable') ? '启用中...' : '批量启用'}
+                  {isLoading('batchSource_batch_enable') ? '启用中…' : '批量启用'}
                 </button>
                 <button
                   onClick={() => handleBatchOperation('batch_disable')}
                   disabled={isLoading('batchSource_batch_disable')}
                   className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_disable') ? buttonStyles.disabled : buttonStyles.warning}`}
                 >
-                  {isLoading('batchSource_batch_disable') ? '禁用中...' : '批量禁用'}
+                  {isLoading('batchSource_batch_disable') ? '禁用中…' : '批量禁用'}
                 </button>
                 <button
                   onClick={() => handleBatchOperation('batch_delete')}
                   disabled={isLoading('batchSource_batch_delete')}
                   className={`px-3 py-1 text-sm ${isLoading('batchSource_batch_delete') ? buttonStyles.disabled : buttonStyles.danger}`}
                 >
-                  {isLoading('batchSource_batch_delete') ? '删除中...' : '批量删除'}
+                  {isLoading('batchSource_batch_delete') ? '删除中…' : '批量删除'}
                 </button>
               </div>
               <div className='hidden sm:block w-px h-6 bg-gray-300 dark:bg-gray-600 order-2'></div>
@@ -2554,7 +2565,7 @@ const VideoSourceConfig = ({
               {isValidating ? (
                 <>
                   <div className='w-3 h-3 border border-white border-t-transparent rounded-full animate-spin'></div>
-                  <span>检测中...</span>
+                  <span>检测中…</span>
                 </>
               ) : (
                 '有效性检测'
@@ -2576,6 +2587,7 @@ const VideoSourceConfig = ({
             <input
               type='text'
               placeholder='名称'
+              aria-label='名称'
               value={newSource.name}
               onChange={(e) =>
                 setNewSource((prev) => ({ ...prev, name: e.target.value }))
@@ -2585,6 +2597,7 @@ const VideoSourceConfig = ({
             <input
               type='text'
               placeholder='Key'
+              aria-label='Key'
               value={newSource.key}
               onChange={(e) =>
                 setNewSource((prev) => ({ ...prev, key: e.target.value }))
@@ -2594,6 +2607,7 @@ const VideoSourceConfig = ({
             <input
               type='text'
               placeholder='API 地址'
+              aria-label='API 地址'
               value={newSource.api}
               onChange={(e) =>
                 setNewSource((prev) => ({ ...prev, api: e.target.value }))
@@ -2603,6 +2617,7 @@ const VideoSourceConfig = ({
             <input
               type='text'
               placeholder='Detail 地址（选填）'
+              aria-label='Detail 地址（选填）'
               value={newSource.detail}
               onChange={(e) =>
                 setNewSource((prev) => ({ ...prev, detail: e.target.value }))
@@ -2616,7 +2631,7 @@ const VideoSourceConfig = ({
               disabled={!newSource.name || !newSource.key || !newSource.api || isLoading('addSource')}
               className={`w-full sm:w-auto px-4 py-2 ${!newSource.name || !newSource.key || !newSource.api || isLoading('addSource') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              {isLoading('addSource') ? '添加中...' : '添加'}
+              {isLoading('addSource') ? '添加中…' : '添加'}
             </button>
           </div>
         </div>
@@ -2690,7 +2705,7 @@ const VideoSourceConfig = ({
             disabled={isLoading('saveSourceOrder')}
             className={`px-3 py-1.5 text-sm ${isLoading('saveSourceOrder') ? buttonStyles.disabled : buttonStyles.primary}`}
           >
-            {isLoading('saveSourceOrder') ? '保存中...' : '保存排序'}
+            {isLoading('saveSourceOrder') ? '保存中…' : '保存排序'}
           </button>
         </div>
       )}
@@ -2709,6 +2724,7 @@ const VideoSourceConfig = ({
               <input
                 type='text'
                 placeholder='请输入搜索关键词'
+                aria-label='搜索关键词'
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
                 className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
@@ -2757,6 +2773,7 @@ const VideoSourceConfig = ({
                 </h3>
                 <button
                   onClick={confirmModal.onCancel}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-5 h-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -2784,7 +2801,7 @@ const VideoSourceConfig = ({
                   disabled={isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete')}
                   className={`px-4 py-2 text-sm font-medium ${isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete') ? buttonStyles.disabled : buttonStyles.primary}`}
                 >
-                  {isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete') ? '操作中...' : '确认'}
+                  {isLoading('batchSource_batch_enable') || isLoading('batchSource_batch_disable') || isLoading('batchSource_batch_delete') ? '操作中…' : '确认'}
                 </button>
               </div>
             </div>
@@ -2873,6 +2890,7 @@ const CategoryConfig = ({
   };
 
   const handleDelete = (query: string, type: 'movie' | 'tv') => {
+    if (!window.confirm('确定删除此分类？此操作不可撤销。')) return;
     withLoading(`deleteCategory_${query}_${type}`, () => callCategoryApi({ action: 'delete', query, type })).catch(() => {
       console.error('操作失败', 'delete', query, type);
     });
@@ -3006,7 +3024,7 @@ const CategoryConfig = ({
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
-        加载中...
+        加载中…
       </div>
     );
   }
@@ -3032,6 +3050,7 @@ const CategoryConfig = ({
             <input
               type='text'
               placeholder='分类名称'
+              aria-label='分类名称'
               value={newCategory.name}
               onChange={(e) =>
                 setNewCategory((prev) => ({ ...prev, name: e.target.value }))
@@ -3040,6 +3059,7 @@ const CategoryConfig = ({
             />
             <select
               value={newCategory.type}
+              aria-label='分类类型'
               onChange={(e) =>
                 setNewCategory((prev) => ({
                   ...prev,
@@ -3054,6 +3074,7 @@ const CategoryConfig = ({
             <input
               type='text'
               placeholder='搜索关键词'
+              aria-label='搜索关键词'
               value={newCategory.query}
               onChange={(e) =>
                 setNewCategory((prev) => ({ ...prev, query: e.target.value }))
@@ -3067,7 +3088,7 @@ const CategoryConfig = ({
               disabled={!newCategory.name || !newCategory.query || isLoading('addCategory')}
               className={`w-full sm:w-auto px-4 py-2 ${!newCategory.name || !newCategory.query || isLoading('addCategory') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              {isLoading('addCategory') ? '添加中...' : '添加'}
+              {isLoading('addCategory') ? '添加中…' : '添加'}
             </button>
           </div>
         </div>
@@ -3128,7 +3149,7 @@ const CategoryConfig = ({
             disabled={isLoading('saveCategoryOrder')}
             className={`px-3 py-1.5 text-sm ${isLoading('saveCategoryOrder') ? buttonStyles.disabled : buttonStyles.primary}`}
           >
-            {isLoading('saveCategoryOrder') ? '保存中...' : '保存排序'}
+            {isLoading('saveCategoryOrder') ? '保存中…' : '保存排序'}
           </button>
         </div>
       )}
@@ -3242,7 +3263,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
-        加载中...
+        加载中…
       </div>
     );
   }
@@ -3271,8 +3292,9 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               value={subscriptionUrl}
               onChange={(e) => setSubscriptionUrl(e.target.value)}
               placeholder='https://example.com/config.json'
+              aria-label='订阅URL'
               disabled={false}
-              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500'
+              className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 shadow-sm hover:border-gray-400 dark:hover:border-gray-500'
             />
             <p className='mt-2 text-xs text-gray-500 dark:text-gray-400'>
               输入配置文件的订阅地址，要求 JSON 格式，且使用 Base58 编码
@@ -3284,7 +3306,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             <button
               onClick={handleFetchConfig}
               disabled={isLoading('fetchConfig') || !subscriptionUrl.trim()}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-200 ${isLoading('fetchConfig') || !subscriptionUrl.trim()
+              className={`w-full px-6 py-3 rounded-lg font-medium transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 ${isLoading('fetchConfig') || !subscriptionUrl.trim()
                 ? buttonStyles.disabled
                 : buttonStyles.success
                 }`}
@@ -3314,7 +3336,7 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
               type='button'
               onClick={() => setAutoUpdate(!autoUpdate)}
               disabled={false}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${autoUpdate
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:ring-offset-2 ${autoUpdate
                 ? buttonStyles.toggleOn
                 : buttonStyles.toggleOff
                 }`}
@@ -3337,9 +3359,10 @@ const ConfigFileComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             value={configContent}
             onChange={(e) => setConfigContent(e.target.value)}
             rows={20}
-            placeholder='请输入配置文件内容（JSON 格式）...'
+            placeholder='请输入配置文件内容（JSON 格式）…'
+            aria-label='配置文件内容（JSON 格式）'
             disabled={false}
-            className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono text-sm leading-relaxed resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400 dark:hover:border-gray-500'
+            className='w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-mono text-sm leading-relaxed resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 hover:border-gray-400 dark:hover:border-gray-500'
             style={{
               fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace'
             }}
@@ -3540,7 +3563,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
-        加载中...
+        加载中…
       </div>
     );
   }
@@ -3597,7 +3620,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
             <button
               type='button'
               onClick={() => setIsDoubanDropdownOpen(!isDoubanDropdownOpen)}
-              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
+              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:border-green-500 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
             >
               {
                 doubanDataSourceOptions.find(
@@ -3683,7 +3706,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                   DoubanProxy: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
+              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:border-green-500 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
             />
             <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
               自定义代理服务器地址
@@ -3709,7 +3732,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                   !isDoubanImageProxyDropdownOpen
                 )
               }
-              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
+              className="w-full px-3 py-2.5 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:border-green-500 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm hover:border-gray-400 dark:hover:border-gray-500 text-left"
             >
               {
                 doubanImageProxyTypeOptions.find(
@@ -3795,7 +3818,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                   DoubanImageProxy: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
+              className="w-full px-3 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:border-green-500 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 shadow-sm hover:border-gray-400 dark:hover:border-gray-500"
             />
             <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
               自定义图片代理服务器地址
@@ -3858,7 +3881,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                 DisableYellowFilter: !prev.DisableYellowFilter,
               }))
             }
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.DisableYellowFilter
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.DisableYellowFilter
               ? buttonStyles.toggleOn
               : buttonStyles.toggleOff
               }`}
@@ -3892,7 +3915,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                 FluidSearch: !prev.FluidSearch,
               }))
             }
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.FluidSearch
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.FluidSearch
               ? buttonStyles.toggleOn
               : buttonStyles.toggleOff
               }`}
@@ -3926,7 +3949,7 @@ const SiteConfigComponent = ({ config, refreshConfig }: { config: AdminConfig | 
                 EnableWebLive: !prev.EnableWebLive,
               }))
             }
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.EnableWebLive
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus:ring-green-500 focus:ring-offset-2 ${siteSettings.EnableWebLive
               ? buttonStyles.toggleOn
               : buttonStyles.toggleOff
               }`}
@@ -4054,6 +4077,7 @@ const LiveSourceConfig = ({
   };
 
   const handleDelete = (key: string) => {
+    if (!window.confirm('确定删除此直播源？此操作不可撤销。')) return;
     withLoading(`deleteLiveSource_${key}`, () => callLiveSourceApi({ action: 'delete', key })).catch(() => {
       console.error('操作失败', 'delete', key);
     });
@@ -4253,7 +4277,7 @@ const LiveSourceConfig = ({
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
-        加载中...
+        加载中…
       </div>
     );
   }
@@ -4274,7 +4298,7 @@ const LiveSourceConfig = ({
               : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 text-white rounded-lg transition-colors'
               }`}
           >
-            <span>{isRefreshing || isLoading('refreshLiveSources') ? '刷新中...' : '刷新直播源'}</span>
+            <span>{isRefreshing || isLoading('refreshLiveSources') ? '刷新中…' : '刷新直播源'}</span>
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
@@ -4291,6 +4315,7 @@ const LiveSourceConfig = ({
             <input
               type='text'
               placeholder='名称'
+              aria-label='名称'
               value={newLiveSource.name}
               onChange={(e) =>
                 setNewLiveSource((prev) => ({ ...prev, name: e.target.value }))
@@ -4300,6 +4325,7 @@ const LiveSourceConfig = ({
             <input
               type='text'
               placeholder='Key'
+              aria-label='Key'
               value={newLiveSource.key}
               onChange={(e) =>
                 setNewLiveSource((prev) => ({ ...prev, key: e.target.value }))
@@ -4309,6 +4335,7 @@ const LiveSourceConfig = ({
             <input
               type='text'
               placeholder='M3U 地址'
+              aria-label='M3U 地址'
               value={newLiveSource.url}
               onChange={(e) =>
                 setNewLiveSource((prev) => ({ ...prev, url: e.target.value }))
@@ -4318,6 +4345,7 @@ const LiveSourceConfig = ({
             <input
               type='text'
               placeholder='节目单地址（选填）'
+              aria-label='节目单地址（选填）'
               value={newLiveSource.epg}
               onChange={(e) =>
                 setNewLiveSource((prev) => ({ ...prev, epg: e.target.value }))
@@ -4327,6 +4355,7 @@ const LiveSourceConfig = ({
             <input
               type='text'
               placeholder='自定义 UA（选填）'
+              aria-label='自定义 UA（选填）'
               value={newLiveSource.ua}
               onChange={(e) =>
                 setNewLiveSource((prev) => ({ ...prev, ua: e.target.value }))
@@ -4341,7 +4370,7 @@ const LiveSourceConfig = ({
               disabled={!newLiveSource.name || !newLiveSource.key || !newLiveSource.url || isLoading('addLiveSource')}
               className={`w-full sm:w-auto px-4 py-2 ${!newLiveSource.name || !newLiveSource.key || !newLiveSource.url || isLoading('addLiveSource') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              {isLoading('addLiveSource') ? '添加中...' : '添加'}
+              {isLoading('addLiveSource') ? '添加中…' : '添加'}
             </button>
           </div>
         </div>
@@ -4356,6 +4385,7 @@ const LiveSourceConfig = ({
             </h5>
             <button
               onClick={handleCancelEdit}
+              aria-label="关闭"
               className='text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
             >
               ✕
@@ -4438,7 +4468,7 @@ const LiveSourceConfig = ({
               disabled={!editingLiveSource.name || !editingLiveSource.url || isLoading('editLiveSource')}
               className={`${!editingLiveSource.name || !editingLiveSource.url || isLoading('editLiveSource') ? buttonStyles.disabled : buttonStyles.success}`}
             >
-              {isLoading('editLiveSource') ? '保存中...' : '保存'}
+              {isLoading('editLiveSource') ? '保存中…' : '保存'}
             </button>
           </div>
         </div>
@@ -4505,7 +4535,7 @@ const LiveSourceConfig = ({
             disabled={isLoading('saveLiveSourceOrder')}
             className={`px-3 py-1.5 text-sm ${isLoading('saveLiveSourceOrder') ? buttonStyles.disabled : buttonStyles.primary}`}
           >
-            {isLoading('saveLiveSourceOrder') ? '保存中...' : '保存排序'}
+            {isLoading('saveLiveSourceOrder') ? '保存中…' : '保存排序'}
           </button>
         </div>
       )}
@@ -4784,6 +4814,7 @@ function AdminPageClient() {
                 </h3>
                 <button
                   onClick={() => setShowResetConfigModal(false)}
+                  aria-label="关闭"
                   className='text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors'
                 >
                   <svg className='w-6 h-6' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
@@ -4821,7 +4852,7 @@ function AdminPageClient() {
                   disabled={isLoading('resetConfig')}
                   className={`px-6 py-2.5 text-sm font-medium ${isLoading('resetConfig') ? buttonStyles.disabled : buttonStyles.danger}`}
                 >
-                  {isLoading('resetConfig') ? '重置中...' : '确认重置'}
+                  {isLoading('resetConfig') ? '重置中…' : '确认重置'}
                 </button>
               </div>
             </div>

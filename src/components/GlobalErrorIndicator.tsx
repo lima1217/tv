@@ -59,10 +59,17 @@ export function GlobalErrorIndicator() {
   }
 
   return (
-    <div className='fixed top-4 right-4 z-[2000]'>
-      {/* 错误卡片 */}
+    <div
+      className='fixed z-[2000]'
+      style={{
+        top: 'calc(1rem + env(safe-area-inset-top))',
+        right: 'calc(1rem + env(safe-area-inset-right))',
+      }}
+    >
       <div
-        className={`bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px] max-w-[400px] transition-all duration-300 ${
+        role='alert'
+        aria-live='assertive'
+        className={`bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between min-w-[300px] max-w-[400px] transition-[transform,background-color,opacity] duration-300 ${
           isReplacing ? 'scale-105 bg-red-400' : 'scale-100 bg-red-500'
         } animate-fade-in`}
       >
@@ -70,8 +77,9 @@ export function GlobalErrorIndicator() {
           {currentError.message}
         </span>
         <button
+          type='button'
           onClick={handleClose}
-          className='text-white hover:text-red-100 transition-colors flex-shrink-0'
+          className='text-white hover:text-red-100 transition-colors flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded'
           aria-label='关闭错误提示'
         >
           <svg
@@ -79,6 +87,7 @@ export function GlobalErrorIndicator() {
             fill='none'
             stroke='currentColor'
             viewBox='0 0 24 24'
+            aria-hidden='true'
           >
             <path
               strokeLinecap='round'

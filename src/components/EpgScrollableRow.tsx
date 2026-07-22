@@ -150,15 +150,15 @@ export default function EpgScrollableRow({
       <div className="pt-4">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Clock className="w-3 h-3 sm:w-4 sm:h-4" aria-hidden="true" />
             今日节目单
           </h4>
           <div className="w-16 sm:w-20"></div>
         </div>
         <div className="min-h-[100px] sm:min-h-[120px] flex items-center justify-center">
           <div className="flex items-center gap-3 sm:gap-4 text-gray-500 dark:text-gray-400">
-            <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-            <span className="text-sm sm:text-base">加载节目单...</span>
+            <div className="w-5 h-5 sm:w-6 sm:h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin motion-reduce:animate-none"></div>
+            <span className="text-sm sm:text-base">加载节目单…</span>
           </div>
         </div>
       </div>
@@ -171,14 +171,14 @@ export default function EpgScrollableRow({
       <div className="pt-4">
         <div className="mb-3 flex items-center justify-between">
           <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-            <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+            <Clock className="w-3 h-3 sm:w-4 sm:h-4" aria-hidden="true" />
             今日节目单
           </h4>
           <div className="w-16 sm:w-20"></div>
         </div>
         <div className="min-h-[100px] sm:min-h-[120px] flex items-center justify-center">
           <div className="flex items-center gap-2 sm:gap-3 text-gray-400 dark:text-gray-500">
-            <Tv className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Tv className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
             <span className="text-sm sm:text-base">暂无节目单数据</span>
           </div>
         </div>
@@ -190,16 +190,18 @@ export default function EpgScrollableRow({
     <div className="pt-4 mt-2">
       <div className="mb-3 flex items-center justify-between">
         <h4 className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2">
-          <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+          <Clock className="w-3 h-3 sm:w-4 sm:h-4" aria-hidden="true" />
           今日节目单
         </h4>
         {currentPlayingIndex !== -1 && (
           <button
+            type="button"
             onClick={scrollToCurrentProgram}
-            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 bg-gray-300/50 dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-all duration-200"
+            className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 sm:py-2 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 bg-gray-300/50 dark:bg-gray-800 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-green-300 dark:hover:border-green-700 transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
             title="滚动到当前播放位置"
+            aria-label="滚动到当前播放位置"
           >
-            <Target className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <Target className="w-2.5 h-2.5 sm:w-3 sm:h-3" aria-hidden="true" />
             <span className="hidden sm:inline">当前播放</span>
             <span className="sm:hidden">当前</span>
           </button>
@@ -224,7 +226,7 @@ export default function EpgScrollableRow({
             return (
               <div
                 key={index}
-                className={`flex-shrink-0 w-36 sm:w-48 p-2 sm:p-3 rounded-lg border transition-all duration-200 flex flex-col min-h-[100px] sm:min-h-[120px] ${isPlaying
+                className={`flex-shrink-0 w-36 sm:w-48 p-2 sm:p-3 rounded-lg border transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 flex flex-col min-h-[100px] sm:min-h-[120px] ${isPlaying
                   ? 'bg-green-500/10 dark:bg-green-500/20 border-green-500/30'
                   : isFinishedProgram
                     ? 'bg-gray-300/50 dark:bg-gray-800 border-gray-300 dark:border-gray-700'

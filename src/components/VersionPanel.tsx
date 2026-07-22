@@ -343,7 +343,7 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
         </div>
 
         {/* 内容区域 */}
-        <div className='p-3 sm:p-6 overflow-y-auto max-h-[calc(95vh-140px)] sm:max-h-[calc(90vh-120px)]'>
+        <div className='p-3 sm:p-6 overflow-y-auto overscroll-contain max-h-[calc(95vh-140px)] sm:max-h-[calc(90vh-120px)]'>
           <div className='space-y-3 sm:space-y-6'>
             {/* 远程更新信息 */}
             {hasUpdate && (

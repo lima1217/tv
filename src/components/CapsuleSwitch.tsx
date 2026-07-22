@@ -62,17 +62,17 @@ const CapsuleSwitch: React.FC<CapsuleSwitchProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative inline-flex bg-gray-300/80 rounded-full p-1 dark:bg-gray-700 ${
+      className={`relative inline-flex rounded-full bg-gray-300/80 p-1 dark:bg-gray-700 ${
         className || ''
       }`}
     >
       {/* 滑动的白色背景指示器 */}
       {indicatorStyle.width > 0 && (
         <div
-          className='absolute top-1 bottom-1 bg-white dark:bg-gray-500 rounded-full shadow-sm transition-all duration-300 ease-out'
+          className='absolute bottom-1 top-1 left-0 rounded-full bg-white shadow-[0_0_0_1px_oklch(0_0_0/0.04)] transition-transform duration-300 ease-out motion-reduce:transition-none dark:bg-gray-500 dark:shadow-none'
           style={{
-            left: `${indicatorStyle.left}px`,
             width: `${indicatorStyle.width}px`,
+            transform: `translateX(${indicatorStyle.left}px)`,
           }}
         />
       )}
@@ -81,12 +81,14 @@ const CapsuleSwitch: React.FC<CapsuleSwitchProps> = ({
         const isActive = active === opt.value;
         return (
           <button
+            type='button'
             key={opt.value}
             ref={(el) => {
               buttonRefs.current[index] = el;
             }}
             onClick={() => onChange(opt.value)}
-            className={`relative z-10 w-16 px-3 py-1 text-xs sm:w-20 sm:py-2 sm:text-sm rounded-full font-medium transition-all duration-200 cursor-pointer ${
+            aria-pressed={isActive}
+            className={`relative z-10 w-16 cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-[color,transform] duration-150 ease-out active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 sm:w-20 sm:py-2 sm:text-sm ${
               isActive
                 ? 'text-gray-900 dark:text-gray-100'
                 : 'text-gray-700 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'

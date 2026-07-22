@@ -63,10 +63,8 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
 
   return (
     <nav
-      className='md:hidden fixed left-0 right-0 z-[600] bg-white/90 backdrop-blur-xl border-t border-gray-200/50 overflow-hidden dark:bg-gray-900/80 dark:border-gray-700/50'
+      className='md:hidden fixed bottom-0 left-0 right-0 z-[600] overflow-hidden border-t border-gray-200/60 bg-white/90 backdrop-blur-xl dark:border-gray-700/50 dark:bg-gray-900/85'
       style={{
-        /* 紧贴视口底部，同时在内部留出安全区高度 */
-        bottom: 0,
         paddingBottom: 'env(safe-area-inset-bottom)',
         minHeight: 'calc(3.5rem + env(safe-area-inset-bottom))',
       }}
@@ -82,10 +80,10 @@ const MobileBottomNav = ({ activePath }: MobileBottomNavProps) => {
             >
               <Link
                 href={item.href}
-                className='flex flex-col items-center justify-center w-full h-14 gap-1 text-xs'
+                className='flex h-14 w-full flex-col items-center justify-center gap-0.5 text-xs transition-transform duration-150 ease-out active:scale-[0.96]'
               >
                 <item.icon
-                  className={`h-6 w-6 ${active
+                  className={`h-5 w-5 ${active
                     ? 'text-green-600 dark:text-green-400'
                     : 'text-gray-500 dark:text-gray-400'
                     }`}

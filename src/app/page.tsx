@@ -304,29 +304,25 @@ function HomeClient() {
     <PageLayout>
       <div className='overflow-visible px-3 py-4 sm:px-8 sm:py-8 lg:px-10'>
         <section className='mx-auto mb-8 max-w-[95%]'>
-          <div className='mb-3 flex items-end justify-between gap-4'>
-            <div>
-              <p className='hidden text-xs font-medium text-gray-500 dark:text-gray-400 sm:block'>
-                MoonTV
-              </p>
-              <h1 className='mt-1 text-2xl font-semibold tracking-tight text-gray-950 dark:text-gray-100 sm:text-3xl'>
-                观影台
-              </h1>
-            </div>
-          </div>
+          <h1 className='mb-4 text-2xl font-semibold tracking-tight text-gray-950 dark:text-gray-100 sm:text-3xl'>
+            观影台
+          </h1>
 
           <form onSubmit={handleQuickSearch}>
-            <div className='relative rounded-2xl bg-white/85 p-1.5 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-gray-200/70 dark:bg-white/[0.04] dark:shadow-none dark:ring-white/10'>
-              <Search className='absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
+            <div className='relative'>
+              <Search className='pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' aria-hidden />
               <input
+                name='q'
+                autoComplete='off'
+                aria-label='搜索影片'
                 value={quickSearch}
                 onChange={(event) => setQuickSearch(event.target.value)}
-                placeholder='输入片名，聚合搜索'
-                className='h-12 w-full rounded-xl bg-transparent pl-12 pr-24 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none dark:text-gray-100 dark:placeholder:text-gray-500'
+                placeholder='输入片名，聚合搜索…'
+                className='h-12 w-full rounded-xl bg-white/80 pl-11 pr-[4.5rem] text-base text-gray-900 shadow-[0_0_0_1px_oklch(0_0_0/0.06),0_1px_2px_-1px_oklch(0_0_0/0.06)] placeholder:text-gray-400 transition-[box-shadow] duration-150 ease-out focus:outline-none focus-visible:shadow-[0_0_0_1px_oklch(0_0_0/0.1),0_1px_2px_-1px_oklch(0_0_0/0.08)] dark:bg-white/[0.06] dark:text-gray-100 dark:shadow-[0_0_0_1px_oklch(1_0_0/0.08)] dark:placeholder:text-gray-500 dark:focus-visible:shadow-[0_0_0_1px_oklch(1_0_0/0.13)]'
               />
               <button
                 type='submit'
-                className='absolute right-2 top-1/2 inline-flex h-9 -translate-y-1/2 items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white transition-[background-color,transform] active:scale-95 hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:ring-offset-gray-950'
+                className='absolute right-1.5 top-1/2 inline-flex h-9 -translate-y-1/2 items-center justify-center rounded-lg bg-green-600 px-3.5 text-sm font-medium text-white transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:ring-offset-gray-950'
               >
                 搜索
               </button>
@@ -334,21 +330,18 @@ function HomeClient() {
           </form>
 
           {recentSearches.length > 0 && (
-            <div className='mt-4 flex flex-wrap items-center gap-2'>
+            <div className='mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5'>
               <span className='text-xs text-gray-500 dark:text-gray-400'>
-                最近搜索
+                最近
               </span>
               {recentSearches.map((item) => (
-                <button
+                <Link
                   key={item}
-                  type='button'
-                  onClick={() =>
-                    router.push(`/search?q=${encodeURIComponent(item.trim())}`)
-                  }
-                  className='rounded-full bg-gray-900/5 px-3 py-1.5 text-xs text-gray-700 transition-[background-color,color,transform] active:scale-95 hover:bg-green-500/10 hover:text-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-white/10 dark:text-gray-300 dark:hover:text-green-400'
+                  href={`/search?q=${encodeURIComponent(item.trim())}`}
+                  className='min-h-10 text-xs text-gray-600 transition-[color,transform] duration-150 ease-out active:scale-[0.96] hover:text-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:text-gray-400 dark:hover:text-green-400'
                 >
                   {item}
-                </button>
+                </Link>
               ))}
             </div>
           )}
@@ -359,13 +352,15 @@ function HomeClient() {
             // 收藏夹视图
             <section className='mb-8'>
               <div className='mb-4 flex items-center justify-between'>
-                <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
+                <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-200'>
                   我的收藏
                 </h2>
                 {favoriteItems.length > 0 && (
                   <button
+                    type='button'
                     className='text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                     onClick={async () => {
+                      if (!window.confirm('确定清空全部收藏？此操作不可撤销。')) return;
                       await clearAllFavorites();
                       setFavoriteItems([]);
                     }}
@@ -375,21 +370,19 @@ function HomeClient() {
                 )}
               </div>
               {favoriteItems.length === 0 ? (
-                <div className='rounded-xl bg-white/60 py-12 text-center text-gray-500 ring-1 ring-gray-200/60 dark:bg-gray-900/50 dark:text-gray-400 dark:ring-white/10'>
+                <div className='py-12 text-center text-sm text-gray-500 dark:text-gray-400'>
                   暂无收藏内容
                 </div>
               ) : (
                 <div className='space-y-10'>
                   {groupedFavorites.map((group) => (
                     <section key={group.key}>
-                      <div className='mb-4 flex items-center gap-2'>
-                        <h3 className='text-base font-semibold text-gray-800 dark:text-gray-200'>
-                          {group.title}
-                        </h3>
-                        <span className='rounded-full bg-gray-900/5 px-2 py-0.5 text-xs text-gray-500 dark:bg-white/10 dark:text-gray-400'>
+                      <h3 className='mb-4 text-base font-semibold text-gray-800 dark:text-gray-200'>
+                        {group.title}
+                        <span className='ml-2 text-sm font-normal text-gray-400 dark:text-gray-500'>
                           {group.items.length}
                         </span>
-                      </div>
+                      </h3>
                       {renderFavoriteGrid(group.items)}
                     </section>
                   ))}
@@ -405,7 +398,7 @@ function HomeClient() {
               {/* 热门电影 */}
               <section className='mb-8'>
                 <div className='mb-4 flex items-center justify-between'>
-                  <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
+                  <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-200'>
                     热门电影
                   </h2>
                   <Link
@@ -413,25 +406,21 @@ function HomeClient() {
                     className='flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   >
                     查看更多
-                    <ChevronRight className='w-4 h-4 ml-1' />
+                    <ChevronRight className='w-4 h-4 ml-1' aria-hidden />
                   </Link>
                 </div>
                 <ScrollableRow>
                   {loading
-                    ? // 加载状态显示灰色占位数据
-                    Array.from({ length: 8 }).map((_, index) => (
+                    ? Array.from({ length: 8 }).map((_, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                       >
-                        <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse dark:bg-gray-800'>
-                          <div className='absolute inset-0 bg-gray-300 dark:bg-gray-700'></div>
-                        </div>
-                        <div className='mt-2 h-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800'></div>
+                        <div className='aspect-[2/3] w-full animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800' />
+                        <div className='mt-2 h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-800' />
                       </div>
                     ))
-                    : // 显示真实数据
-                    hotMovies.map((movie, index) => (
+                    : hotMovies.map((movie, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
@@ -454,7 +443,7 @@ function HomeClient() {
               {/* 热门剧集 */}
               <section className='mb-8'>
                 <div className='mb-4 flex items-center justify-between'>
-                  <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
+                  <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-200'>
                     热门剧集
                   </h2>
                   <Link
@@ -462,25 +451,21 @@ function HomeClient() {
                     className='flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   >
                     查看更多
-                    <ChevronRight className='w-4 h-4 ml-1' />
+                    <ChevronRight className='w-4 h-4 ml-1' aria-hidden />
                   </Link>
                 </div>
                 <ScrollableRow>
                   {loading
-                    ? // 加载状态显示灰色占位数据
-                    Array.from({ length: 8 }).map((_, index) => (
+                    ? Array.from({ length: 8 }).map((_, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                       >
-                        <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse dark:bg-gray-800'>
-                          <div className='absolute inset-0 bg-gray-300 dark:bg-gray-700'></div>
-                        </div>
-                        <div className='mt-2 h-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800'></div>
+                        <div className='aspect-[2/3] w-full animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800' />
+                        <div className='mt-2 h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-800' />
                       </div>
                     ))
-                    : // 显示真实数据
-                    hotTvShows.map((show, index) => (
+                    : hotTvShows.map((show, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
@@ -502,7 +487,7 @@ function HomeClient() {
               {/* 每日新番放送 */}
               <section className='mb-8'>
                 <div className='mb-4 flex items-center justify-between'>
-                  <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
+                  <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-200'>
                     新番放送
                   </h2>
                   <Link
@@ -510,25 +495,21 @@ function HomeClient() {
                     className='flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   >
                     查看更多
-                    <ChevronRight className='w-4 h-4 ml-1' />
+                    <ChevronRight className='w-4 h-4 ml-1' aria-hidden />
                   </Link>
                 </div>
                 <ScrollableRow>
                   {loading
-                    ? // 加载状态显示灰色占位数据
-                    Array.from({ length: 8 }).map((_, index) => (
+                    ? Array.from({ length: 8 }).map((_, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                       >
-                        <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse dark:bg-gray-800'>
-                          <div className='absolute inset-0 bg-gray-300 dark:bg-gray-700'></div>
-                        </div>
-                        <div className='mt-2 h-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800'></div>
+                        <div className='aspect-[2/3] w-full animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800' />
+                        <div className='mt-2 h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-800' />
                       </div>
                     ))
-                    : // 展示当前日期的番剧
-                    (() => {
+                    : (() => {
                       // 获取当前日期对应的星期
                       const today = new Date();
                       const weekdays = [
@@ -578,7 +559,7 @@ function HomeClient() {
               {/* 热门综艺 */}
               <section className='mb-8'>
                 <div className='mb-4 flex items-center justify-between'>
-                  <h2 className='text-xl font-bold text-gray-800 dark:text-gray-200'>
+                  <h2 className='text-xl font-semibold text-gray-800 dark:text-gray-200'>
                     热门综艺
                   </h2>
                   <Link
@@ -586,25 +567,21 @@ function HomeClient() {
                     className='flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   >
                     查看更多
-                    <ChevronRight className='w-4 h-4 ml-1' />
+                    <ChevronRight className='w-4 h-4 ml-1' aria-hidden />
                   </Link>
                 </div>
                 <ScrollableRow>
                   {loading
-                    ? // 加载状态显示灰色占位数据
-                    Array.from({ length: 8 }).map((_, index) => (
+                    ? Array.from({ length: 8 }).map((_, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
                       >
-                        <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse dark:bg-gray-800'>
-                          <div className='absolute inset-0 bg-gray-300 dark:bg-gray-700'></div>
-                        </div>
-                        <div className='mt-2 h-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800'></div>
+                        <div className='aspect-[2/3] w-full animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800' />
+                        <div className='mt-2 h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-800' />
                       </div>
                     ))
-                    : // 显示真实数据
-                    hotVarietyShows.map((show, index) => (
+                    : hotVarietyShows.map((show, index) => (
                       <div
                         key={index}
                         className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
@@ -628,62 +605,42 @@ function HomeClient() {
       </div>
       {announcement && showAnnouncement && (
         <div
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm dark:bg-black/70 p-4 transition-opacity duration-300 ${showAnnouncement ? '' : 'opacity-0 pointer-events-none'
-            }`}
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overscroll-contain dark:bg-black/70'
           onTouchStart={(e) => {
-            // 如果点击的是背景区域，阻止触摸事件冒泡，防止背景滚动
             if (e.target === e.currentTarget) {
               e.preventDefault();
             }
           }}
           onTouchMove={(e) => {
-            // 如果触摸的是背景区域，阻止触摸移动，防止背景滚动
             if (e.target === e.currentTarget) {
               e.preventDefault();
               e.stopPropagation();
             }
           }}
           onTouchEnd={(e) => {
-            // 如果触摸的是背景区域，阻止触摸结束事件，防止背景滚动
             if (e.target === e.currentTarget) {
               e.preventDefault();
             }
           }}
-          style={{
-            touchAction: 'none', // 禁用所有触摸操作
-          }}
+          style={{ touchAction: 'none' }}
         >
           <div
-            className='w-full max-w-md rounded-xl bg-white p-6 shadow-xl dark:bg-gray-900 transform transition-all duration-300 hover:shadow-2xl'
+            className='w-full max-w-md rounded-2xl bg-white p-6 shadow-[0_0_0_1px_oklch(0_0_0/0.06),0_8px_24px_oklch(0_0_0/0.12)] dark:bg-gray-900 dark:shadow-[0_0_0_1px_oklch(1_0_0/0.08)]'
             onTouchMove={(e) => {
-              // 允许公告内容区域正常滚动，阻止事件冒泡到外层
               e.stopPropagation();
             }}
-            style={{
-              touchAction: 'auto', // 允许内容区域的正常触摸操作
-            }}
+            style={{ touchAction: 'auto' }}
           >
-            <div className='flex justify-between items-start mb-4'>
-              <h3 className='text-2xl font-bold tracking-tight text-gray-800 dark:text-white border-b border-green-500 pb-1'>
-                提示
-              </h3>
-              <button
-                onClick={() => handleCloseAnnouncement(announcement)}
-                className='text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-white transition-colors'
-                aria-label='关闭'
-              ></button>
-            </div>
-            <div className='mb-6'>
-              <div className='relative overflow-hidden rounded-lg mb-4 bg-green-50 dark:bg-green-900/20'>
-                <div className='absolute inset-y-0 left-0 w-1.5 bg-green-500 dark:bg-green-400'></div>
-                <p className='ml-4 text-gray-600 dark:text-gray-300 leading-relaxed'>
-                  {announcement}
-                </p>
-              </div>
-            </div>
+            <h3 className='mb-3 text-lg font-semibold text-gray-900 dark:text-white'>
+              提示
+            </h3>
+            <p className='mb-6 text-sm leading-relaxed text-gray-600 dark:text-gray-300'>
+              {announcement}
+            </p>
             <button
+              type='button'
               onClick={() => handleCloseAnnouncement(announcement)}
-              className='w-full rounded-lg bg-gradient-to-r from-green-600 to-green-700 px-4 py-3 text-white font-medium shadow-md hover:shadow-lg hover:from-green-700 hover:to-green-800 dark:from-green-600 dark:to-green-700 dark:hover:from-green-700 dark:hover:to-green-800 transition-all duration-300 transform hover:-translate-y-0.5'
+              className='w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-medium text-white transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] hover:bg-green-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900'
             >
               我知道了
             </button>

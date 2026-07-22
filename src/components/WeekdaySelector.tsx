@@ -49,12 +49,13 @@ const WeekdaySelector: React.FC<WeekdaySelectorProps> = ({
         return (
           <button
             key={weekday.value}
+            type='button'
             onClick={() => {
               setSelectedWeekday(weekday.value);
               onWeekdayChange(weekday.value);
             }}
             className={`
-              relative z-10 px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all duration-200 whitespace-nowrap
+              relative z-10 px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500
               ${
                 isActive
                   ? 'text-green-600 dark:text-green-400 font-semibold'

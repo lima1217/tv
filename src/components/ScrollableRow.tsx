@@ -72,11 +72,18 @@ export default function ScrollableRow({
     }
   }, []);
 
+  const getScrollBehavior = (): ScrollBehavior => {
+    if (typeof window === 'undefined') return 'smooth';
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? 'auto'
+      : 'smooth';
+  };
+
   const handleScrollRightClick = () => {
     if (containerRef.current) {
       containerRef.current.scrollBy({
         left: scrollDistance,
-        behavior: 'smooth',
+        behavior: getScrollBehavior(),
       });
     }
   };
@@ -85,7 +92,7 @@ export default function ScrollableRow({
     if (containerRef.current) {
       containerRef.current.scrollBy({
         left: -scrollDistance,
-        behavior: 'smooth',
+        behavior: getScrollBehavior(),
       });
     }
   };
@@ -103,6 +110,7 @@ export default function ScrollableRow({
       <div
         ref={containerRef}
         className='flex space-x-6 overflow-x-auto scrollbar-hide py-1 sm:py-2 pb-12 sm:pb-14 px-4 sm:px-6'
+        style={{ touchAction: 'pan-x' }}
         onScroll={checkScroll}
       >
         {children}
@@ -127,10 +135,12 @@ export default function ScrollableRow({
             }}
           >
             <button
+              type='button'
               onClick={handleScrollLeftClick}
-              className='w-12 h-12 bg-white/95 rounded-full shadow-lg flex items-center justify-center hover:bg-white border border-gray-200 transition-transform hover:scale-105 dark:bg-gray-800/90 dark:hover:bg-gray-700 dark:border-gray-600'
+              aria-label='向左滚动'
+              className='w-12 h-12 bg-white/95 rounded-full shadow-lg flex items-center justify-center hover:bg-white border border-gray-200 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-gray-800/90 dark:hover:bg-gray-700 dark:border-gray-600'
             >
-              <ChevronLeft className='w-6 h-6 text-gray-600 dark:text-gray-300' />
+              <ChevronLeft className='w-6 h-6 text-gray-600 dark:text-gray-300' aria-hidden='true' />
             </button>
           </div>
         </div>
@@ -156,10 +166,12 @@ export default function ScrollableRow({
             }}
           >
             <button
+              type='button'
               onClick={handleScrollRightClick}
-              className='w-12 h-12 bg-white/95 rounded-full shadow-lg flex items-center justify-center hover:bg-white border border-gray-200 transition-transform hover:scale-105 dark:bg-gray-800/90 dark:hover:bg-gray-700 dark:border-gray-600'
+              aria-label='向右滚动'
+              className='w-12 h-12 bg-white/95 rounded-full shadow-lg flex items-center justify-center hover:bg-white border border-gray-200 transition-transform hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:bg-gray-800/90 dark:hover:bg-gray-700 dark:border-gray-600'
             >
-              <ChevronRight className='w-6 h-6 text-gray-600 dark:text-gray-300' />
+              <ChevronRight className='w-6 h-6 text-gray-600 dark:text-gray-300' aria-hidden='true' />
             </button>
           </div>
         </div>

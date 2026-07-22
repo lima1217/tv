@@ -2,6 +2,7 @@
 'use client';
 
 import { CheckCircle2, ChevronUp, Layers3, Search, X } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { startTransition, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -19,6 +20,49 @@ import SearchResultFilter, { SearchFilterCategory } from '@/components/SearchRes
 import SearchSuggestions from '@/components/SearchSuggestions';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import VirtualGrid from '@/components/VirtualGrid';
+
+type YearOrder = 'none' | 'asc' | 'desc';
+type SearchFilterState = {
+  source: string;
+  title: string;
+  year: string;
+  yearOrder: YearOrder;
+};
+
+const DEFAULT_SEARCH_FILTER: SearchFilterState = {
+  source: 'all',
+  title: 'all',
+  year: 'all',
+  yearOrder: 'none',
+};
+
+function parseYearOrder(value: string | null): YearOrder {
+  return value === 'asc' || value === 'desc' ? value : 'none';
+}
+
+function parseFilterFromParams(params: URLSearchParams): SearchFilterState {
+  return {
+    source: params.get('source') || 'all',
+    title: params.get('title') || 'all',
+    year: params.get('year') || 'all',
+    yearOrder: parseYearOrder(params.get('yo')),
+  };
+}
+
+function buildSearchQueryString(
+  q: string,
+  view: 'agg' | 'all',
+  filter: SearchFilterState
+): string {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (view !== 'agg') params.set('view', view);
+  if (filter.source !== 'all') params.set('source', filter.source);
+  if (filter.title !== 'all') params.set('title', filter.title);
+  if (filter.year !== 'all') params.set('year', filter.year);
+  if (filter.yearOrder !== 'none') params.set('yo', filter.yearOrder);
+  return params.toString();
+}
 
 function SearchPageClient() {
   // 搜索历史
@@ -87,18 +131,17 @@ function SearchPageClient() {
     return { episodes, source_names, douban_id };
   };
   // 过滤器：非聚合与聚合
-  const [filterAll, setFilterAll] = useState<{ source: string; title: string; year: string; yearOrder: 'none' | 'asc' | 'desc' }>({
-    source: 'all',
-    title: 'all',
-    year: 'all',
-    yearOrder: 'none',
-  });
-  const [filterAgg, setFilterAgg] = useState<{ source: string; title: string; year: string; yearOrder: 'none' | 'asc' | 'desc' }>({
-    source: 'all',
-    title: 'all',
-    year: 'all',
-    yearOrder: 'none',
-  });
+  const [filterAll, setFilterAll] = useState<SearchFilterState>(() =>
+    typeof window !== 'undefined'
+      ? parseFilterFromParams(new URLSearchParams(window.location.search))
+      : DEFAULT_SEARCH_FILTER
+  );
+  const [filterAgg, setFilterAgg] = useState<SearchFilterState>(() =>
+    typeof window !== 'undefined'
+      ? parseFilterFromParams(new URLSearchParams(window.location.search))
+      : DEFAULT_SEARCH_FILTER
+  );
+  const skipUrlHydrateRef = useRef(false);
 
   // 获取默认聚合设置：只读取用户本地设置，默认为 true
   const getDefaultAggregate = () => {
@@ -112,8 +155,42 @@ function SearchPageClient() {
   };
 
   const [viewMode, setViewMode] = useState<'agg' | 'all'>(() => {
+    if (typeof window !== 'undefined') {
+      const view = new URLSearchParams(window.location.search).get('view');
+      if (view === 'agg' || view === 'all') return view;
+    }
     return getDefaultAggregate() ? 'agg' : 'all';
   });
+
+  const syncSearchStateToUrl = (
+    nextView: 'agg' | 'all',
+    nextFilter: SearchFilterState,
+    q = searchParams.get('q') || ''
+  ) => {
+    const qs = buildSearchQueryString(q.trim(), nextView, nextFilter);
+    const nextUrl = qs ? `/search?${qs}` : '/search';
+    const currentUrl = searchParams.toString()
+      ? `/search?${searchParams.toString()}`
+      : '/search';
+    if (nextUrl === currentUrl) return;
+    skipUrlHydrateRef.current = true;
+    router.replace(nextUrl, { scroll: false });
+  };
+
+  const handleViewModeChange = (nextView: 'agg' | 'all') => {
+    setViewMode(nextView);
+    const activeFilter = nextView === 'agg' ? filterAgg : filterAll;
+    syncSearchStateToUrl(nextView, activeFilter);
+  };
+
+  const handleFilterChange = (nextFilter: SearchFilterState) => {
+    if (viewMode === 'agg') {
+      setFilterAgg(nextFilter);
+    } else {
+      setFilterAll(nextFilter);
+    }
+    syncSearchStateToUrl(viewMode, nextFilter);
+  };
 
   // 在“无排序”场景用于每个源批次的预排序：完全匹配标题优先，其次年份倒序，未知年份最后
   const sortBatchForNoOrder = (items: SearchResult[]) => {
@@ -414,8 +491,26 @@ function SearchPageClient() {
   }, []);
 
   useEffect(() => {
-    // 当搜索参数变化时更新搜索状态
-    const query = searchParams.get('q') || '';
+    if (skipUrlHydrateRef.current) {
+      skipUrlHydrateRef.current = false;
+      return;
+    }
+
+    const view = searchParams.get('view');
+    if (view === 'agg' || view === 'all') {
+      setViewMode(view);
+    }
+
+    const filter = parseFilterFromParams(searchParams);
+    setFilterAgg(filter);
+    setFilterAll(filter);
+  }, [searchParams]);
+
+  const searchQueryParam = searchParams.get('q') || '';
+
+  useEffect(() => {
+    // 仅在 q 变化时重新搜索，筛选参数变化不影响请求
+    const query = searchQueryParam;
     currentQueryRef.current = query.trim();
 
     if (query) {
@@ -572,7 +667,7 @@ function SearchPageClient() {
       setShowResults(false);
       setShowSuggestions(false);
     }
-  }, [searchParams]);
+  }, [searchQueryParam]);
 
   // 组件卸载时，关闭可能存在的连接
   useEffect(() => {
@@ -620,7 +715,9 @@ function SearchPageClient() {
     setShowResults(true);
     setShowSuggestions(false);
 
-    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    router.push(
+      `/search?${buildSearchQueryString(trimmed, viewMode, DEFAULT_SEARCH_FILTER)}`
+    );
     // 其余由 searchParams 变化的 effect 处理
   };
 
@@ -632,20 +729,21 @@ function SearchPageClient() {
     setIsLoading(true);
     setShowResults(true);
 
-    router.push(`/search?q=${encodeURIComponent(suggestion)}`);
+    router.push(
+      `/search?${buildSearchQueryString(suggestion, viewMode, DEFAULT_SEARCH_FILTER)}`
+    );
     // 其余由 searchParams 变化的 effect 处理
   };
 
   // 返回顶部功能
   const scrollToTop = () => {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     try {
-      // 根据调试结果，真正的滚动容器是 document.body
       document.body.scrollTo({
         top: 0,
-        behavior: 'smooth',
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
       });
     } catch (error) {
-      // 如果平滑滚动完全失败，使用立即滚动
       document.body.scrollTop = 0;
     }
   };
@@ -657,16 +755,18 @@ function SearchPageClient() {
         <div className='mb-8'>
           <form onSubmit={handleSearch} className='max-w-2xl mx-auto'>
             <div className='relative'>
-              <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' />
+              <Search className='absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 dark:text-gray-500' aria-hidden />
               <input
                 id='searchInput'
+                name='q'
                 type='text'
+                aria-label='搜索'
                 value={searchQuery}
                 onChange={handleInputChange}
                 onFocus={handleInputFocus}
-                placeholder='搜索电影、电视剧...'
-                autoComplete="off"
-                className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-12 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
+                placeholder='搜索电影、电视剧…'
+                autoComplete='off'
+                className='w-full h-12 rounded-lg bg-gray-50/80 py-3 pl-10 pr-12 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 focus:bg-white border border-gray-200/50 shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:placeholder-gray-500 dark:focus:bg-gray-700 dark:border-gray-700'
               />
 
               {/* 清除按钮 */}
@@ -678,7 +778,7 @@ function SearchPageClient() {
                     setShowSuggestions(false);
                     document.getElementById('searchInput')?.focus();
                   }}
-                  className='absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors dark:text-gray-500 dark:hover:text-gray-300'
+                  className='absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors dark:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-400 rounded'
                   aria-label='清除搜索内容'
                 >
                   <X className='h-5 w-5' />
@@ -702,7 +802,9 @@ function SearchPageClient() {
                   setShowResults(true);
                   setShowSuggestions(false);
 
-                  router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+                  router.push(
+                    `/search?${buildSearchQueryString(trimmed, viewMode, DEFAULT_SEARCH_FILTER)}`
+                  );
                 }}
               />
             </div>
@@ -725,7 +827,7 @@ function SearchPageClient() {
                     </p>
                   </div>
                   {totalSources > 0 && useFluidSearch && (
-                    <div className='inline-flex items-center gap-2 rounded-full bg-gray-900/5 px-3 py-1.5 text-sm text-gray-700 dark:bg-white/10 dark:text-gray-300'>
+                    <div aria-live='polite' className='inline-flex items-center gap-2 rounded-full bg-gray-900/5 px-3 py-1.5 text-sm text-gray-700 dark:bg-white/10 dark:text-gray-300'>
                       {isLoading ? (
                         <span className='inline-block h-3 w-3 rounded-full border-2 border-gray-300 border-t-green-500 animate-spin'></span>
                       ) : (
@@ -774,26 +876,28 @@ function SearchPageClient() {
                     <SearchResultFilter
                       categories={filterOptions.categoriesAgg}
                       values={filterAgg}
-                      onChange={(v) => setFilterAgg(v as any)}
+                      onChange={(v) => handleFilterChange(v as SearchFilterState)}
                     />
                   ) : (
                     <SearchResultFilter
                       categories={filterOptions.categoriesAll}
                       values={filterAll}
-                      onChange={(v) => setFilterAll(v as any)}
+                      onChange={(v) => handleFilterChange(v as SearchFilterState)}
                     />
                   )}
                 </div>
                 {/* 聚合开关 */}
                 <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
-                  <Layers3 className='h-4 w-4 text-gray-500 dark:text-gray-400' />
+                  <Layers3 className='h-4 w-4 text-gray-500 dark:text-gray-400' aria-hidden />
                   <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>聚合</span>
                   <div className='relative'>
                     <input
                       type='checkbox'
                       className='sr-only peer'
                       checked={viewMode === 'agg'}
-                      onChange={() => setViewMode(viewMode === 'agg' ? 'all' : 'agg')}
+                      onChange={() =>
+                        handleViewModeChange(viewMode === 'agg' ? 'all' : 'agg')
+                      }
                     />
                     <div className='w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
                     <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
@@ -822,6 +926,7 @@ function SearchPageClient() {
                         const title = group[0]?.title || '';
                         const poster = group[0]?.poster || '';
                         const year = group[0]?.year || 'unknown';
+                        const remarks = group[0]?.remarks || '';
                         const { episodes, source_names, douban_id } = computeGroupStats(group);
                         const type = episodes === 1 ? 'movie' : 'tv';
 
@@ -838,6 +943,7 @@ function SearchPageClient() {
                               title={title}
                               poster={poster}
                               year={year}
+                              remarks={remarks}
                               episodes={episodes}
                               source_names={source_names}
                               douban_id={douban_id}
@@ -871,6 +977,7 @@ function SearchPageClient() {
                             source={item.source}
                             source_name={item.source_name}
                             douban_id={item.douban_id}
+                            remarks={item.remarks}
                             query={
                               searchQuery.trim() !== item.title
                                 ? searchQuery.trim()
@@ -894,8 +1001,10 @@ function SearchPageClient() {
                 搜索历史
                 {searchHistory.length > 0 && (
                   <button
+                    type='button'
                     onClick={() => {
-                      clearSearchHistory(); // 事件监听会自动更新界面
+                      if (!window.confirm('确定清空搜索历史？此操作不可撤销。')) return;
+                      clearSearchHistory();
                     }}
                     className='ml-3 text-sm text-gray-500 hover:text-red-500 transition-colors dark:text-gray-400 dark:hover:text-red-500'
                   >
@@ -905,18 +1014,13 @@ function SearchPageClient() {
               </h2>
               <div className='flex flex-wrap gap-2'>
                 {searchHistory.map((item) => (
-                  <div key={item} className='relative group'>
-                    <button
-                      onClick={() => {
-                        setSearchQuery(item);
-                        router.push(
-                          `/search?q=${encodeURIComponent(item.trim())}`
-                        );
-                      }}
-                      className='px-4 py-2 bg-gray-500/10 hover:bg-gray-300 rounded-full text-sm text-gray-700 transition-colors duration-200 dark:bg-gray-700/50 dark:hover:bg-gray-600 dark:text-gray-300'
+                  <div key={item} className='relative group max-w-full min-w-0'>
+                    <Link
+                      href={`/search?q=${encodeURIComponent(item.trim())}`}
+                      className='block max-w-full min-w-0 px-4 py-2 bg-gray-500/10 hover:bg-gray-300 rounded-full text-sm text-gray-700 transition-colors duration-200 dark:bg-gray-700/50 dark:hover:bg-gray-600 dark:text-gray-300'
                     >
-                      {item}
-                    </button>
+                      <span className='block truncate min-w-0'>{item}</span>
+                    </Link>
                     {/* 删除按钮 */}
                     <button
                       aria-label='删除搜索历史'
@@ -939,8 +1043,9 @@ function SearchPageClient() {
 
       {/* 返回顶部悬浮按钮 */}
       <button
+        type='button'
         onClick={scrollToTop}
-        className={`fixed bottom-20 md:bottom-6 right-6 z-[500] w-12 h-12 bg-green-500/90 hover:bg-green-500 text-white rounded-full shadow-lg backdrop-blur-sm transition-all duration-300 ease-in-out flex items-center justify-center group ${showBackToTop
+        className={`fixed z-[500] w-12 h-12 bg-green-500/90 hover:bg-green-500 text-white rounded-full shadow-lg backdrop-blur-sm transition-[opacity,transform] duration-300 ease-in-out flex items-center justify-center group focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-950 right-[max(1.5rem,calc(1.5rem+env(safe-area-inset-right)))] bottom-[max(5rem,calc(1.25rem+env(safe-area-inset-bottom)))] md:bottom-[max(1.5rem,calc(1.5rem+env(safe-area-inset-bottom)))] ${showBackToTop
           ? 'opacity-100 translate-y-0 pointer-events-auto'
           : 'opacity-0 translate-y-4 pointer-events-none'
           }`}

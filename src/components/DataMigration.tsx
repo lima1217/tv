@@ -80,7 +80,7 @@ const AlertModal = ({
 
   return createPortal(
     <div className={`fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`} onClick={onClose}>
-      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border ${getBgColor()} transition-all duration-200 ${isVisible ? 'scale-100' : 'scale-95'}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full border ${getBgColor()} transition-[color,background-color,border-color,opacity,transform,box-shadow,width] duration-200 ${isVisible ? 'scale-100' : 'scale-95'} max-h-[90vh] overflow-y-auto overscroll-contain`} onClick={(e) => e.stopPropagation()}>
         <div className="p-6 text-center">
           <div className="flex justify-center mb-4">
             {getIcon()}
@@ -265,6 +265,10 @@ const DataMigration = ({ onRefreshConfig }: DataMigrationProps) => {
       return;
     }
 
+    if (!window.confirm('导入将清空现有数据并覆盖，确定要继续吗？')) {
+      return;
+    }
+
     try {
       setIsImporting(true);
 
@@ -395,7 +399,7 @@ const DataMigration = ({ onRefreshConfig }: DataMigrationProps) => {
                 {isExporting ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    导出中...
+                    导出中…
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-2">
@@ -471,7 +475,7 @@ const DataMigration = ({ onRefreshConfig }: DataMigrationProps) => {
                 {isImporting ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    导入中...
+                    导入中…
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-2">

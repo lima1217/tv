@@ -107,6 +107,18 @@ export interface SearchResult {
   desc?: string;
   type_name?: string;
   douban_id?: number;
+  /** 主演（下游 vod_actor 或豆瓣补全） */
+  actors?: string;
+  /** 导演 */
+  director?: string;
+  /** 地区 */
+  area?: string;
+  /** 语言 */
+  lang?: string;
+  /** 更新至 / 完结状态等备注 */
+  remarks?: string;
+  /** 评分（下游 vod_score 或豆瓣评分） */
+  score?: string;
 }
 
 // 豆瓣数据结构

@@ -87,21 +87,18 @@ export default function ContinueWatching({ className }: ContinueWatchingProps) {
 
   return (
     <section className={`mb-8 ${className || ''}`}>
-      <div className='mb-4 flex items-end justify-between gap-4'>
-        <div>
-          <h2 className='text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100'>
-            继续观看
-          </h2>
-          {!loading && playRecords.length > 0 && (
-            <p className='mt-1 text-sm text-gray-500 dark:text-gray-400'>
-              最近进度，直接接着看
-            </p>
-          )}
-        </div>
+      <div className='mb-4 flex items-center justify-between'>
+        <h2 className='text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100'>
+          继续观看
+        </h2>
         {!loading && playRecords.length > 0 && (
           <button
-            className='min-h-10 rounded-lg px-3 text-sm text-gray-500 transition-[background-color,color,transform] active:scale-95 hover:bg-gray-900/5 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200'
+            type='button'
+            className='min-h-10 rounded-lg px-3 text-sm text-gray-500 transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.96] hover:bg-gray-900/5 hover:text-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-200'
             onClick={async () => {
+              if (!window.confirm('确定清空全部观看记录？此操作不可撤销。')) {
+                return;
+              }
               await clearAllPlayRecords();
               setPlayRecords([]);
             }}
@@ -112,21 +109,16 @@ export default function ContinueWatching({ className }: ContinueWatchingProps) {
       </div>
       <ScrollableRow>
         {loading
-          ? // 加载状态显示灰色占位数据
-            Array.from({ length: 6 }).map((_, index) => (
+          ? Array.from({ length: 6 }).map((_, index) => (
               <div
                 key={index}
                 className='min-w-[96px] w-24 sm:min-w-[180px] sm:w-44'
               >
-                <div className='relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-gray-200 animate-pulse dark:bg-gray-800'>
-                  <div className='absolute inset-0 bg-gray-300 dark:bg-gray-700'></div>
-                </div>
-                <div className='mt-2 h-4 bg-gray-200 rounded animate-pulse dark:bg-gray-800'></div>
-                <div className='mt-1 h-3 bg-gray-200 rounded animate-pulse dark:bg-gray-800'></div>
+                <div className='aspect-[2/3] w-full animate-pulse rounded-lg bg-gray-200 dark:bg-gray-800' />
+                <div className='mt-2 h-4 animate-pulse rounded bg-gray-200 dark:bg-gray-800' />
               </div>
             ))
-          : // 显示真实数据
-            playRecords.map((record) => {
+          : playRecords.map((record) => {
               const { source, id } = parseKey(record.key);
               return (
                 <div
