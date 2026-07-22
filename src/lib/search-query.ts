@@ -9,7 +9,7 @@ const SEASON_NOISE =
 const TAG_NOISE =
   /国语|粤语|台语|中字|英字|双语|配音|无删减|完整版|剧场版|特别篇|番外|预告|花絮|4[Kk]|1080[Pp]|720[Pp]|蓝光|高清|超清|HDR/g;
 
-const PUNCT_NOISE = /[·・:：\-—_/\\|.,，。!！?？~～…*#@（）()\[\]【】「」『』<>《》"'“”‘’]/g;
+const PUNCT_NOISE = /[·・:：\-—_/\\|.,，。!！?？~～…*#@（）()[\]【】「」『』<>《》"'“”‘’]/g;
 
 /** 折叠空白并去掉首尾空格 */
 export function collapseSpaces(text: string): string {

@@ -1,5 +1,5 @@
-import { mergeVideoEnrichment } from './video-enrichment';
 import { SearchResult } from './types';
+import { mergeVideoEnrichment } from './video-enrichment';
 
 function base(overrides: Partial<SearchResult> = {}): SearchResult {
   return {
